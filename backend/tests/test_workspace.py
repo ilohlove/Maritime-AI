@@ -142,7 +142,13 @@ def test_isolation_and_vietnamese_retrieval(workspace):
     client, _, app = workspace
     doc = upload(client).json()
     other_id = str(uuid4())
-    store_document(app.state.engine, other_id, 'synthetic-vietnamese.pdf', b'', ['Áo phao được kiểm tra vào thứ sáu.'])
+    from app.schemas.extraction import DocumentMetadata, ExtractionResult, ContentUnit, PageLocator, initial_revision_id, pdf_unit_id
+    rid = initial_revision_id(other_id)
+    store_document(app.state.engine, ExtractionResult(
+        metadata=DocumentMetadata(document_id=other_id, revision_id=rid, name='synthetic-vietnamese.pdf',
+            source_format='pdf', media_type='application/pdf', sha256='0'*64, size_bytes=0),
+        status='ready', units=[ContentUnit(id=pdf_unit_id(rid, 1), locator=PageLocator(page_number=1),
+            text='Áo phao được kiểm tra vào thứ sáu.')]))
     assert normalize('ÁO PHAO ĐƯỢC') == 'ao phao duoc'
     rows = retrieve(app.state.engine, other_id, 'Áo phao kiểm tra khi nào?')
     assert rows and rows[0]['document_id'] == other_id

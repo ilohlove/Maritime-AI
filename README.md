@@ -4,6 +4,10 @@ An offline-first, online-optional personal AI workspace for seafarers, initially
 
 **Task 02 real-model acceptance is UNVERIFIED in this cloud environment.** See [Task 02 setup and Windows validation](docs/TASK_02.md) and [test evidence](docs/TASK_02_VALIDATION.md). A real local runtime and GGUF are required for generated answers; no cloud fallback or convincing mock is used by the application.
 
+See [Extraction foundation](docs/EXTRACTION_FOUNDATION.md) for the format-independent
+content/revision contract, migration 0003 and PDF compatibility. PDF remains the only
+supported import format.
+
 ## Requirements
 
 - Python 3.11+ (CI: 3.12), Node.js 22.12+ (CI: 24), npm.

@@ -20,6 +20,16 @@ A `vessels` table contains nullable typed particulars, UUID, created/updated tim
 
 Every non-null submitted field receives provenance: `extraction_method` (user_entered/imported/ai_extracted), `source_document` (logical reference only), `verification_status`, `last_updated`. A regular edit resets that field to user_entered/unverified; unchanged metadata survives PATCH. Clearing a value removes its provenance. Timestamps come from the server. AI-sourced verified submissions are rejected. A subsequent explicit human verification can resubmit the reviewed field as user_entered/verified. This is current-state provenance, not a document store or immutable audit history. A normalized event/document schema can follow when extraction exists.
 
+## Extraction foundation update
+
+Migration 0003 adds immutable source revision metadata and typed content units;
+chunks reference their revision/unit and retrieval returns typed source locators.
+FTS5 ranking/chunking and the LLM provider are unchanged. Existing PDF data,
+evidence IDs and the PDF page API are preserved. The common source-inspection
+endpoint resolves document/revision/unit together; frontend labels depend on the
+locator type. Only PDF is importable. See [Extraction foundation](EXTRACTION_FOUNDATION.md)
+for the contract, compatibility details, test evidence and known limitations.
+
 ## Task 02 document Q&A and local inference
 
 AI Workspace is the primary screen; its status/loading is independent of the

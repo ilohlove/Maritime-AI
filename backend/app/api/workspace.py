@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import re
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -9,7 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
 from app.services.ai import ProviderError
-from app.services.documents import MAX_UPLOAD, extract_pdf, retrieve, store_document
+from app.schemas.extraction import DocumentMetadata, ExtractionFile, initial_revision_id
+from app.services.documents import MAX_UPLOAD, extract_document, retrieve, store_document
 
 
 class Question(BaseModel):
@@ -26,10 +29,12 @@ def create_workspace_router(engine, directory: Path, provider):
 
     def get_document(document_id: UUID):
         with engine.connect() as connection:
-            result = connection.execute(text("SELECT * FROM documents WHERE id=:id"), {"id": str(document_id)}).mappings().first()
+            result = connection.execute(text("""SELECT d.*, r.id AS revision_id,r.source_format,r.business_version,r.effective_date,
+                r.extraction_status,r.extraction_errors,r.media_type,r.storage_name FROM documents d
+                JOIN document_revisions r ON r.document_id=d.id WHERE d.id=:id"""), {"id": str(document_id)}).mappings().first()
             if not result:
                 raise HTTPException(404, "Document not found")
-            return dict(result)
+            return {**dict(result), "extraction_errors": json.loads(result["extraction_errors"])}
 
     @router.get("/ai/status")
     def status():
@@ -40,7 +45,10 @@ def create_workspace_router(engine, directory: Path, provider):
     @router.get("/documents")
     def documents():
         with engine.connect() as connection:
-            return [dict(row) for row in connection.execute(text("SELECT * FROM documents ORDER BY created_at DESC")).mappings()]
+            rows = connection.execute(text("""SELECT d.*,r.id AS revision_id,r.source_format,
+                r.business_version,r.effective_date,r.extraction_status,r.extraction_errors FROM documents d
+                JOIN document_revisions r ON r.document_id=d.id ORDER BY d.created_at DESC""")).mappings()
+            return [{**dict(row), "extraction_errors": json.loads(row["extraction_errors"])} for row in rows]
 
     @router.post("/documents", status_code=201)
     async def upload(request: Request, filename: str = Query(min_length=1, max_length=200)):
@@ -59,11 +67,16 @@ def create_workspace_router(engine, directory: Path, provider):
         try:
             with path.open("xb") as file:
                 file.write(data)
-            pages = await extract_pdf(path)
             # User filenames are labels only and never used as storage paths.
             name = filename.replace("\\", "/").split("/")[-1]
             name = re.sub(r"[\x00-\x1f\x7f]", "", name) or "document.pdf"
-            record = store_document(engine, document_id, name, bytes(data), pages)
+            metadata = DocumentMetadata(document_id=document_id, revision_id=initial_revision_id(document_id),
+                name=name, source_format='pdf', media_type='application/pdf',
+                sha256=hashlib.sha256(data).hexdigest(), size_bytes=len(data))
+            result = await extract_document(ExtractionFile(path=path, metadata=metadata))
+            if result.status == 'failed':
+                raise ValueError(result.errors[0].message)
+            record = store_document(engine, result)
             return record
         except ValueError as error:
             path.unlink(missing_ok=True)
@@ -76,19 +89,38 @@ def create_workspace_router(engine, directory: Path, provider):
     def page(document_id: UUID, page_number: int):
         document = get_document(document_id)
         with engine.connect() as connection:
-            result = connection.execute(text("SELECT text FROM document_pages WHERE document_id=:id AND page_number=:page"),
-                                        {"id": str(document_id), "page": page_number}).scalar_one_or_none()
-        if result is None:
+            row = connection.execute(text("""SELECT id,text,locator FROM content_units
+                WHERE revision_id=:rid AND json_extract(locator,'$.kind')='page'
+                AND json_extract(locator,'$.page_number')=:page"""),
+                {"rid": document['revision_id'], "page": page_number}).mappings().first()
+        if row is None:
             raise HTTPException(404, "Page not found")
-        return {"document_id": str(document_id), "document_name": document["name"], "page_number": page_number, "text": result}
+        return {"document_id": str(document_id), "document_name": document['name'],
+                "page_number": page_number, "text": row['text'], "revision_id": document['revision_id'],
+                "unit_id": row['id'], "locator": json.loads(row['locator'])}
+
+    @router.get("/documents/{document_id}/revisions/{revision_id}/units/{unit_id}")
+    def unit(document_id: UUID, revision_id: UUID, unit_id: UUID):
+        with engine.connect() as connection:
+            row = connection.execute(text("""SELECT u.*,d.name AS document_name,r.document_id,r.source_format
+                FROM content_units u JOIN document_revisions r ON r.id=u.revision_id
+                JOIN documents d ON d.id=r.document_id
+                WHERE d.id=:did AND r.id=:rid AND u.id=:uid"""),
+                {"did": str(document_id), "rid": str(revision_id), "uid": str(unit_id)}).mappings().first()
+        if row is None:
+            raise HTTPException(404, "Source unit not found for this document revision")
+        return {"document_id": str(document_id), "revision_id": str(revision_id), "unit_id": str(unit_id),
+                "document_name": row['document_name'], "source_format": row['source_format'],
+                "kind": row['kind'], "locator": json.loads(row['locator']), "text": row['text'],
+                "table": json.loads(row['table_content']) if row['table_content'] else None}
 
     @router.get("/documents/{document_id}/file")
     def file(document_id: UUID):
         document = get_document(document_id)
-        path = directory / f"{document_id}.pdf"
+        path = directory / document["storage_name"]
         if not path.is_file():
             raise HTTPException(404, "Stored PDF is missing. Reimport the source.")
-        return FileResponse(path, media_type="application/pdf", filename=document["name"],
+        return FileResponse(path, media_type=document["media_type"], filename=document["name"],
                             headers={"X-Content-Type-Options": "nosniff"})
 
     @router.post("/questions/{request_id}/cancel")

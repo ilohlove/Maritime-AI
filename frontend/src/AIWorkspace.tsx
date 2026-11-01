@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { request } from "./api";
+import { sourceLabel, type SourceLocator } from "./sourceLocator";
 
 type Document = { id: string; name: string; page_count: number; size_bytes: number; sha256: string };
-type Citation = { id: string; document_id: string; document_name: string; page_number: number; excerpt: string; quote: string };
+type Citation = { id: string; document_id: string; document_name: string; revision_id: string; unit_id: string; locator: SourceLocator; excerpt: string; quote: string };
 type Answer = { status: string; answer: string; citations: Citation[]; notice?: string };
 type ModelStatus = { configured: boolean; detail: string };
 
@@ -12,7 +13,7 @@ export function AIWorkspace() {
   const [model, setModel] = useState<ModelStatus | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
-  const [page, setPage] = useState<{ document_name: string; page_number: number; text: string } | null>(null);
+  const [page, setPage] = useState<{ document_name: string; locator: SourceLocator; text: string } | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -117,17 +118,17 @@ export function AIWorkspace() {
       <p className="answer-text">{answer.answer}</p>
       {answer.notice && <p className="muted">{answer.notice}</p>}
       {answer.citations.map((source, index) => <details key={`${source.id}-${index}`} open>
-        <summary>Source {index + 1}: {source.document_name} · Page {source.page_number}</summary>
+        <summary>Source {index + 1}: {source.document_name} · {sourceLabel(source.locator)}</summary>
         <blockquote>{source.quote}</blockquote>
         <p className="evidence-text">{source.excerpt}</p>
         <button onClick={async () => {
-          try { setPage(await request(`/documents/${source.document_id}/pages/${source.page_number}`)); }
+          try { setPage(await request(`/documents/${source.document_id}/revisions/${source.revision_id}/units/${source.unit_id}`)); }
           catch (e) { setError(e instanceof Error ? e.message : "Cannot load source page."); }
-        }}>Inspect source page {source.page_number}</button>
+        }}>Inspect source {sourceLabel(source.locator).replace(/^Page/, "page")}</button>
       </details>)}
     </section>}
-    {page && <section className="card" aria-label="Source page"><h2>{page.document_name} · Page {page.page_number}</h2>
-      <p>Extracted source text. Download the original PDF to inspect its layout.</p><pre className="evidence-text">{page.text}</pre></section>}
+    {page && <section className="card" aria-label="Source content"><h2>{page.document_name} · {sourceLabel(page.locator)}</h2>
+      <p>Extracted source text. Download the original file to inspect its layout.</p><pre className="evidence-text">{page.text}</pre></section>}
     <p className="muted">AI can misinterpret documents. Inspect cited evidence. You remain responsible for navigation and safety-critical decisions.</p>
   </>;
 }
