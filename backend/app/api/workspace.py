@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from app.services.ai import ProviderError
 from app.schemas.extraction import DocumentMetadata, ExtractionFile, initial_revision_id
-from app.services.documents import MAX_UPLOAD, extract_document, retrieve, store_document
+from app.services.documents import MAX_UPLOAD, extract_document, store_document
 
 
 class Question(BaseModel):
@@ -23,7 +23,7 @@ class Question(BaseModel):
     mode: str = "local_only"
 
 
-def create_workspace_router(engine, directory: Path, provider):
+def create_workspace_router(engine, directory: Path, provider, retrieval):
     router = APIRouter(prefix="/api")
     running = {}
 
@@ -41,6 +41,15 @@ def create_workspace_router(engine, directory: Path, provider):
         ready, detail = provider.availability()
         return {"mode": "local_only", "provider": provider.name, "configured": ready, "detail": detail,
                 "unavailable_modes": ["online", "auto"]}
+
+    @router.get("/retrieval/status")
+    def retrieval_status():
+        return dict(retrieval.last_status)
+
+    @router.post("/documents/{document_id}/index")
+    async def index(document_id: UUID):
+        get_document(document_id)
+        return await retrieval.index_document(str(document_id))
 
     @router.get("/documents")
     def documents():
@@ -77,13 +86,15 @@ def create_workspace_router(engine, directory: Path, provider):
             if result.status == 'failed':
                 raise ValueError(result.errors[0].message)
             record = store_document(engine, result)
-            return record
+            # Indexing failure cannot remove an already committed source document.
         except ValueError as error:
             path.unlink(missing_ok=True)
             raise HTTPException(422, str(error)) from None
         except BaseException:
             path.unlink(missing_ok=True)
             raise
+        record['semantic_index'] = await retrieval.index_document(document_id)
+        return record
 
     @router.get("/documents/{document_id}/pages/{page_number}")
     def page(document_id: UUID, page_number: int):
@@ -135,22 +146,14 @@ def create_workspace_router(engine, directory: Path, provider):
         if payload.mode != "local_only":
             raise HTTPException(422, "Only Local Only mode is available. No cloud fallback.")
         get_document(payload.document_id)
-        evidence = retrieve(engine, str(payload.document_id), payload.question)
-        insufficient = {"status": "insufficient_evidence", "answer": "Insufficient document evidence / Không đủ bằng chứng trong tài liệu.", "citations": [], "provider": provider.name}
-        if not evidence:
-            return insufficient
-        key = str(payload.request_id)
-        if key in running:
-            raise HTTPException(409, "Request ID is already running")
-        task = asyncio.create_task(provider.answer(payload.question, evidence))
-        running[key] = task
-        try:
-            while not task.done():
-                if await request.is_disconnected():
-                    task.cancel()
-                    raise asyncio.CancelledError
-                await asyncio.wait({task}, timeout=0.2)
-            result = await task
+        async def generate():
+            evidence, retrieval_info = await retrieval.search(str(payload.document_id), payload.question)
+            insufficient = {"status": "insufficient_evidence", "answer": "Insufficient document evidence / Không đủ bằng chứng trong tài liệu.",
+                            "citations": [], "provider": provider.name, "retrieval": retrieval_info,
+                            "notice": retrieval_info.get("notice", "")}
+            if not evidence:
+                return insufficient
+            result = await provider.answer(payload.question, evidence)
             if not result.supported:
                 return insufficient
             sources = {item["id"]: item for item in evidence}
@@ -163,7 +166,20 @@ def create_workspace_router(engine, directory: Path, provider):
                     raise ProviderError("Citation integrity check failed. No answer was accepted.")
                 citations.append({**source, "quote": citation.quote})
             return {"status": "answered", "answer": result.answer, "citations": citations,
-                    "provider": provider.name, "notice": "AI interpretation grounded in document excerpts. Verify claims against the source; this is not navigational advice."}
+                    "retrieval": retrieval_info, "provider": provider.name, "notice": retrieval_info.get("notice", "") + " AI interpretation grounded in document excerpts. Verify claims against the source; this is not navigational advice."}
+
+        key = str(payload.request_id)
+        if key in running:
+            raise HTTPException(409, "Request ID is already running")
+        task = asyncio.create_task(generate())
+        running[key] = task
+        try:
+            while not task.done():
+                if await request.is_disconnected():
+                    task.cancel()
+                    raise asyncio.CancelledError
+                await asyncio.wait({task}, timeout=0.2)
+            return await task
         except ProviderError as error:
             raise HTTPException(503, str(error)) from None
         except asyncio.CancelledError:

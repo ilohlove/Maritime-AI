@@ -1,0 +1,26 @@
+{
+  "notice": "SYNTHETIC EXERCISE ONLY. Reference labels and particulars are fictional test material, not maritime advice.",
+  "pages": [
+    "SYNTHETIC EXERCISE ONLY. Lifejacket inspections are scheduled every Friday. The lifejacket locker is checked by the duty officer.",
+    "SYNTHETIC EXERCISE ONLY. Fire drill attendance is recorded in the drill log by the chief officer.",
+    "SYNTHETIC EXERCISE ONLY. The exercise reference label is SOLAS III/19. This fictional reference card contains no legal interpretation or regulatory requirements.",
+    "SYNTHETIC EXERCISE ONLY. Portable pump FW-PUMP-07 has a fictional rated capacity of 25 cubic metres per hour.",
+    "SYNTHETIC EXERCISE ONLY. The bridge handover checklist records the compass error before watch relief.",
+    "SYNTHETIC EXERCISE ONLY. Radar RAD-02 is isolated for a fictional maintenance exercise. Contact the duty officer before restoring power."
+  ],
+  "queries": [
+    {"id":"en_lifejacket","question":"When are lifejacket inspections scheduled?","pages":[1],"group":"english"},
+    {"id":"vi_lifejacket","question":"Áo phao được kiểm tra vào ngày nào?","pages":[1],"group":"vietnamese"},
+    {"id":"en_fire","question":"Who records fire drill attendance?","pages":[2],"group":"english"},
+    {"id":"vi_fire","question":"Ai ghi danh sách người tham gia diễn tập chữa cháy?","pages":[2],"group":"vietnamese"},
+    {"id":"en_handover","question":"What is recorded before watch relief?","pages":[5],"group":"english"},
+    {"id":"vi_handover","question":"Trước khi bàn giao ca trực phải ghi sai số gì?","pages":[5],"group":"vietnamese"},
+    {"id":"exact_reference","question":"Where is the exercise reference SOLAS III/19 mentioned?","pages":[3],"group":"exact_reference"},
+    {"id":"equipment_pump","question":"Công suất bơm FW-PUMP-07 là bao nhiêu?","pages":[4],"group":"equipment"},
+    {"id":"equipment_radar","question":"What is the status of RAD-02?","pages":[6],"group":"equipment"},
+    {"id":"vi_radar","question":"Ai cần được liên hệ trước khi cấp điện lại cho ra đa?","pages":[6],"group":"vietnamese"},
+    {"id":"unsupported_imo","question":"What is the vessel IMO number?","pages":[],"group":"unsupported"},
+    {"id":"unsupported_vi","question":"Tàu có bao nhiêu thuyền viên?","pages":[],"group":"unsupported"},
+    {"id":"unsupported_overlap","question":"Which SOLAS regulation requires daily lifejacket pressure testing?","pages":[],"group":"unsupported"}
+  ]
+}

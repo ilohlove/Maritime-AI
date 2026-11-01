@@ -1,0 +1,14 @@
+{
+  "mode": "hybrid",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "real_semantic_quality": "UNVERIFIED",
+  "queries": [],
+  "status": "UNVERIFIED: real embedding weights/runtime unavailable",
+  "blocker": "Embedding model unavailable; FTS5 remains available",
+  "metrics": null,
+  "memory": {
+    "python_peak_rss_bytes": 67055616,
+    "largest_finished_child_peak_rss_bytes": 67973120,
+    "note": "Lifetime high-water RSS. Child peak is max, not sum, and can include PDF extraction. Not combined system/model memory."
+  }
+}

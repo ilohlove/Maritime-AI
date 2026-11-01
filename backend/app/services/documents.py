@@ -88,7 +88,7 @@ def store_document(engine, result: ExtractionResult):
             "extraction_status": result.status, "extraction_errors": [error.model_dump(mode='json') for error in result.errors]}
 
 
-def retrieve(engine, document_id: str, question: str) -> list[dict]:
+def retrieve(engine, document_id: str, question: str, limit: int = 3) -> list[dict]:
     words = list(dict.fromkeys(word for word in re.findall(r"\w+", normalize(question))
                               if word not in STOP_WORDS and len(word) > 1))[:16]
     if not words:
@@ -101,7 +101,7 @@ def retrieve(engine, document_id: str, question: str) -> list[dict]:
             JOIN content_units u ON u.id=c.unit_id AND u.revision_id=c.revision_id
             JOIN document_revisions r ON r.id=c.revision_id AND r.document_id=d.id
             WHERE document_search MATCH :query AND c.document_id=:id
-            ORDER BY bm25(document_search), c.id LIMIT 3"""), {"query": query, "id": document_id}).mappings()
+            ORDER BY bm25(document_search), c.id LIMIT :limit"""), {"query": query, "id": document_id, "limit": limit}).mappings()
         return [{"id": f"E{row['id']}", "document_id": document_id, "document_name": row["name"],
                  "page_number": row["page_number"], "excerpt": row["excerpt"],
                  "revision_id": row["revision_id"], "unit_id": row["unit_id"],

@@ -20,6 +20,16 @@ A `vessels` table contains nullable typed particulars, UUID, created/updated tim
 
 Every non-null submitted field receives provenance: `extraction_method` (user_entered/imported/ai_extracted), `source_document` (logical reference only), `verification_status`, `last_updated`. A regular edit resets that field to user_entered/unverified; unchanged metadata survives PATCH. Clearing a value removes its provenance. Timestamps come from the server. AI-sourced verified submissions are rejected. A subsequent explicit human verification can resubmit the reviewed field as user_entered/verified. This is current-state provenance, not a document store or immutable audit history. A normalized event/document schema can follow when extraction exists.
 
+## Hybrid retrieval V1
+
+An optional local embedding provider indexes immutable chunks into SQLite vector
+BLOBs keyed by model identity and content hash. Migration 0004 adds derived data
+only. The selected-document semantic cosine ranking and FTS5 BM25 candidates are
+fused with RRF (k=60), keeping the existing top-three evidence schema/quote checks.
+Missing/failed embedding models fall back to FTS5 with an explicit notice. LLM
+provider and source identities are unchanged. See [Hybrid retrieval V1](HYBRID_RETRIEVAL_V1.md)
+for setup, incremental indexing, benchmarks and unverified real-model gates.
+
 ## Extraction foundation update
 
 Migration 0003 adds immutable source revision metadata and typed content units;
@@ -55,8 +65,9 @@ Citations are accepted only for retrieved IDs and exact source quotes. Source na
 and page come from the database, never the model. No matches or a model-declared
 unsupported question returns insufficient evidence. Mechanical source validation
 is not semantic entailment verification. Prompt injection remains a model-quality
-risk, though the runtime has no application actions. FTS5 requires source-language
-keyword overlap; it does not provide general cross-language semantic retrieval.
+risk, though the runtime has no application actions. The FTS5-only fallback requires source-language
+keyword overlap. Hybrid retrieval V1 adds optional local semantic candidates; its
+real multilingual quality remains unverified until embedding weights are tested.
 
 The original `AIProvider.respond`/MockAIProvider remain only as historical foundation
 stubs for compatibility tests; the application does not route answers through them.

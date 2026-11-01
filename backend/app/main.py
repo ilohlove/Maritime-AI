@@ -9,12 +9,15 @@ from app.core.config import Settings
 from app.db.session import create_database
 from app.api.workspace import create_workspace_router
 from app.services.ai import DocumentAIProvider, LlamaCppProvider
+from app.services.embeddings import EmbeddingProvider, LocalEmbeddingProvider
+from app.services.hybrid_retrieval import HybridRetrieval
 
 
-def create_app(settings: Settings | None = None, provider: DocumentAIProvider | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, provider: DocumentAIProvider | None = None, embedding_provider: EmbeddingProvider | None = None) -> FastAPI:
     settings = settings or Settings()
     engine, sessions = create_database(settings.database_url)
     provider = provider or LlamaCppProvider(settings)
+    retrieval = HybridRetrieval(engine, embedding_provider or LocalEmbeddingProvider(settings), settings)
     directory = settings.documents_dir or Path(engine.url.database).resolve().parent / "documents"
 
     @asynccontextmanager
@@ -25,7 +28,10 @@ def create_app(settings: Settings | None = None, provider: DocumentAIProvider | 
             try:
                 await provider.close()
             finally:
-                engine.dispose()
+                try:
+                    await retrieval.close()
+                finally:
+                    engine.dispose()
 
     app = FastAPI(
         title="Maritime AI Assistant",
@@ -35,6 +41,7 @@ def create_app(settings: Settings | None = None, provider: DocumentAIProvider | 
         redoc_url=None,
     )
     app.state.engine = engine
+    app.state.retrieval = retrieval
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
@@ -71,5 +78,5 @@ def create_app(settings: Settings | None = None, provider: DocumentAIProvider | 
         return {"status": "ok", "ai_provider": provider.name}
 
     app.include_router(create_vessel_router(sessions))
-    app.include_router(create_workspace_router(engine, directory, provider))
+    app.include_router(create_workspace_router(engine, directory, provider, retrieval))
     return app

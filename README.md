@@ -8,6 +8,10 @@ See [Extraction foundation](docs/EXTRACTION_FOUNDATION.md) for the format-indepe
 content/revision contract, migration 0003 and PDF compatibility. PDF remains the only
 supported import format.
 
+Optional [Hybrid retrieval V1](docs/HYBRID_RETRIEVAL_V1.md) adds local persistent
+embeddings with FTS5 fallback. Real multilingual embedding quality remains
+**UNVERIFIED** until the candidate weights can be run.
+
 ## Requirements
 
 - Python 3.11+ (CI: 3.12), Node.js 22.12+ (CI: 24), npm.
