@@ -51,6 +51,44 @@ For a local production bundle, run `npm run build` then `npm run preview` from `
 
 ## Local data and configuration
 
+### Synthetic UI preview and Android review
+
+After installing dependencies, use the active backend virtual environment:
+
+```sh
+python scripts/synthetic_preview.py
+```
+
+This starts the existing React UI on `http://127.0.0.1:5173` and FastAPI on
+`127.0.0.1:8000`, applies migrations, and seeds **SYNTHETIC PREVIEW VESSEL — TEST DATA**.
+It overrides inherited database settings with the ignored
+`.preview-synthetic/maritime.db`; it never opens the normal operational database.
+Seeding only occurs when this preview database is empty, so saved edits survive
+page reloads and server restarts. All seeded fields are unverified; IMO/MMSI are
+left blank to avoid associating the profile with a real vessel. Use synthetic data only.
+
+This Codex session has no available preview/port-forwarding capability, so its
+loopback URLs cannot be opened from an Android phone. No public deployment or
+tunnel is created. See [preview validation and alternatives](docs/PREVIEW.md).
+
+For interactive phone review, run this checkout on a computer on the same trusted
+Wi-Fi as the phone. Find that computer's local IPv4 address and substitute it below:
+
+```sh
+python scripts/synthetic_preview.py --host 0.0.0.0 --origin http://192.168.1.20:5173
+```
+
+Open `http://192.168.1.20:5173` in Android Chrome. Only the synthetic preview frontend
+is bound to the network; the backend stays on loopback and Vite proxies `/api`.
+The origin is explicitly trusted for saving and its hostname is allowed in Vite.
+Allow port 5173 on the computer's private-network firewall if necessary. Do not
+forward the port on a router. Ctrl+C stops both servers. This exception to the
+normal loopback-only setup is for this synthetic phone review only.
+
+If an authenticated Codex port preview becomes available in another session, use
+its exact HTTPS origin with `--origin` and `--host 0.0.0.0`, and forward frontend
+port 5173 only. The script does not create or publish that forwarding itself.
+
 Default database: `~/.maritime-ai/maritime.db` (Windows: the user home directory). Override with `MARITIME_DATA_DIR`, or `MARITIME_DATABASE_URL=sqlite:///absolute/path/to/file.db`. Ensure a custom database parent directory exists. Set variables before migration and startup; both commands must use the same values.
 
 `MARITIME_ALLOWED_ORIGINS` is a comma-separated explicit origin list, defaulting to `http://127.0.0.1:5173,http://localhost:5173`. Keep it limited to trusted local frontend origins. Vite proxies relative `/api` requests to the backend, including in preview mode. Do not expose either service on a vessel LAN.

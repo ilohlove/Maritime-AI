@@ -10,6 +10,9 @@ test("create, edit and reload real persisted profile on desktop and mobile", asy
     .fill("SYNTHETIC E2E VESSEL");
   await page.getByLabel("Length Overall (m)", { exact: true }).fill("123.456");
   await page
+    .getByLabel("Length Between Perpendiculars (m)", { exact: true })
+    .fill("120.000");
+  await page
     .getByRole("button", { name: /Create ship profile|Save changes/ })
     .click();
   await expect(page.getByRole("status")).toHaveText(

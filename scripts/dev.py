@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def main():
+def main(frontend_host="127.0.0.1"):
     npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
     if npm is None:
         raise SystemExit("npm is required. Install Node.js 22.12+ first.")
@@ -61,7 +61,9 @@ def main():
             raise RuntimeError("Backend readiness check timed out.")
         processes.append(
             subprocess.Popen(
-                [npm, "run", "dev"], cwd=ROOT / "frontend", **process_options
+                [npm, "run", "dev", "--", "--host", frontend_host],
+                cwd=ROOT / "frontend",
+                **process_options,
             )
         )
         print("Workspace: http://127.0.0.1:5173 (Ctrl+C to stop)", flush=True)
