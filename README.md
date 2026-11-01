@@ -1,11 +1,13 @@
 # Maritime AI Assistant
 
-An offline-first vessel operations workspace for Deck Officers, Chief Officers and Masters. Task 01 provides a real SQLite-backed Ship Profile and Dashboard. Other modules are explicitly marked **Coming Soon**. The development mock provides no maritime advice.
+An offline-first, online-optional personal AI workspace for seafarers, initially deck officers. AI Workspace imports text-based PDFs, retrieves page evidence and connects to a configurable local llama.cpp model. Ship Profile and Dashboard remain supporting tools. Only Local Only mode is implemented.
+
+**Task 02 real-model acceptance is UNVERIFIED in this cloud environment.** See [Task 02 setup and Windows validation](docs/TASK_02.md) and [test evidence](docs/TASK_02_VALIDATION.md). A real local runtime and GGUF are required for generated answers; no cloud fallback or convincing mock is used by the application.
 
 ## Requirements
 
 - Python 3.11+ (CI: 3.12), Node.js 22.12+ (CI: 24), npm.
-- Windows, Linux or macOS. CPU only; no GPU, model, API key or cloud service required.
+- Windows, Linux or macOS. CPU only; no GPU, API key or cloud service required. Document answers require a separately installed llama.cpp CPU runtime and local GGUF; profile/PDF inspection works without a model.
 - Internet is needed to install dependencies initially. Normal application use is local and does not require Internet. Frontend assets/fonts are bundled or system-local.
 
 ## Install
@@ -131,4 +133,4 @@ docs/          Product requirements, architecture, decisions and roadmap
 .github/       GitHub Actions CI
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). This repository intentionally does not include local LLMs or an AI chat implementation.
+See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). Model weights are never included in Git. Task 02 implements one local document Q&A workflow, not general chat or automatic form filling.

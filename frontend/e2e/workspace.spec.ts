@@ -24,6 +24,7 @@ test("create, edit and reload real persisted profile on desktop and mobile", asy
     "Ship profile saved locally.",
   );
   await page.reload();
+  await page.getByRole("button", { name: "Dashboard", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "SYNTHETIC E2E VESSEL" }),
   ).toBeVisible();

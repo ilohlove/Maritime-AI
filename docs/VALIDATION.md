@@ -1,5 +1,8 @@
 # Task 01 validation
 
+Historical results. Current Task 02 results and explicit unverified model/Windows
+gates are in [TASK_02_VALIDATION.md](TASK_02_VALIDATION.md).
+
 Validated in Codex Cloud on Linux, Python 3.12.14, Node 24.19.0 and Chromium 154. All fixture vessel records are synthetic and stored outside Git.
 
 | Check | Result |

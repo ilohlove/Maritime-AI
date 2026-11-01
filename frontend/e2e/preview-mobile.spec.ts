@@ -5,6 +5,8 @@ test.use({ ...devices["Pixel 7"] });
 // Use only a disposable, migrated database, as for workspace.spec.ts.
 test("Android touch navigation, edit, validation, save and reload", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "AI Workspace", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Dashboard", exact: true }).tap();
   await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Ship Profile", exact: true }).tap();
   const name = page.getByLabel("Vessel Name", { exact: true });
@@ -21,6 +23,7 @@ test("Android touch navigation, edit, validation, save and reload", async ({ pag
   await page.getByRole("button", { name: "Dashboard", exact: true }).tap();
   await expect(page.getByRole("heading", { name: "SYNTHETIC ANDROID REVIEW — TEST DATA" })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "Dashboard", exact: true }).tap();
   await expect(page.getByText("SYNTHETIC ANDROID FLAG", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Ship Profile", exact: true }).tap();
   await expect(name).toHaveValue("SYNTHETIC ANDROID REVIEW — TEST DATA");

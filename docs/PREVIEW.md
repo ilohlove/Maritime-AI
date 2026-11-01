@@ -1,5 +1,9 @@
 # Task 01 UI review
 
+Historical preview evidence. The current default screen is AI Workspace; use
+[TASK_02.md](TASK_02.md) for local runtime setup, current tests and model limitations.
+The synthetic launcher and Ship Profile review steps below remain usable.
+
 The existing application was retrieved from remote `feature/initial-foundation`,
 commit `1ae911d8e8fd65963bf6ed9e06dbe16ff7bee28c`, into this initially empty checkout.
 Preview preparation is on `feature/ui-preview`. Task 02 has not started.

@@ -15,3 +15,9 @@ test-results/
 *.egg-info/
 *.tsbuildinfo
 .preview-synthetic/
+*.gguf
+/models/
+/tools/llama/
+/documents/
+
+synthetic-*.pdf

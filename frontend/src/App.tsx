@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { listVessels, type Vessel } from "./api";
 import { ShipProfile } from "./ShipProfile";
 import { copy } from "./copy";
+import { AIWorkspace } from "./AIWorkspace";
 
 export default function App() {
-  const [module, setModule] = useState("Dashboard");
+  const [module, setModule] = useState("AI Workspace");
   const [vessel, setVessel] = useState<Vessel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,7 +42,7 @@ export default function App() {
           </span>
           <div>
             MARITIME <strong>AI ASSISTANT</strong>
-            <small>VESSEL OPERATIONS WORKSPACE</small>
+            <small>PERSONAL AI WORKSPACE</small>
           </div>
         </div>
         <nav aria-label="Main navigation">
@@ -79,7 +80,8 @@ export default function App() {
           </button>
         </header>
         <main>
-          {loading ? (
+          <div hidden={module !== "AI Workspace" && module !== "Knowledge & Files"}><AIWorkspace /></div>
+          {module === "AI Workspace" || module === "Knowledge & Files" ? null : loading ? (
             <div role="status" className="card">
               Loading local vessel data…
             </div>
@@ -152,7 +154,7 @@ export default function App() {
                   </div>
                   <div>
                     <dt>AI engine</dt>
-                    <dd>Mock provider · No model installed</dd>
+                    <dd>Local Only · See AI Workspace for model status</dd>
                   </div>
                 </dl>
                 <p className="muted">
@@ -178,7 +180,7 @@ export default function App() {
           )}
         </main>
         <footer>
-          {copy.product} <span>Local data · Task 01 foundation</span>
+          {copy.product} <span>Local data · Local Only AI</span>
         </footer>
       </div>
     </div>

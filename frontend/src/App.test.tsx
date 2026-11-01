@@ -23,12 +23,13 @@ it("renders empty dashboard and navigates to actual form and planned modules", a
   );
   const user = userEvent.setup();
   render(<App />);
+  await user.click(screen.getByRole("button", { name: "Dashboard" }));
   expect(
     await screen.findByText("Your vessel workspace starts here"),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Create ship profile" }));
   expect(screen.getByLabelText("Vessel Name")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Documents" }));
+  await user.click(screen.getByRole("button", { name: "Tasks & Reminders" }));
   expect(screen.getByText("Coming Soon")).toBeInTheDocument();
 });
 
@@ -39,6 +40,7 @@ it("dashboard displays real API data and toggles theme", async () => {
   );
   const user = userEvent.setup();
   render(<App />);
+  await user.click(screen.getByRole("button", { name: "Dashboard" }));
   expect(await screen.findByText("SYNTHETIC DEMO")).toBeInTheDocument();
   expect(screen.getByText("Test flag")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Toggle color theme" }));
@@ -120,13 +122,17 @@ it("shows backend errors and retains input after a failed save", async () => {
 });
 
 it("shows connection failure and supports retry", async () => {
-  const fetcher = vi
-    .fn()
-    .mockRejectedValueOnce(new Error("offline"))
-    .mockImplementation(() => respond([]));
+  let fail = true;
+  const fetcher = vi.fn((url: string) => {
+    if (url === "/api/vessels" && fail) {
+      fail = false; return Promise.reject(new Error("offline"));
+    }
+    return respond([]);
+  });
   vi.stubGlobal("fetch", fetcher);
   const user = userEvent.setup();
   render(<App />);
+  await user.click(screen.getByRole("button", { name: "Dashboard" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Local backend unavailable",
   );

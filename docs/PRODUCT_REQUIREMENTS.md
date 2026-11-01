@@ -1,5 +1,8 @@
 # Product requirements — Task 01
 
+Historical foundation scope. The approved AI-first Task 02 scope and acceptance
+are documented in [TASK_02.md](TASK_02.md); this document is not the full product MVP definition.
+
 ## Users and problem
 
 Deck Officers, Chief Officers and Masters need a reliable vessel record while connectivity is unavailable for long periods. Current workflows spread particulars across documents and spreadsheets. The product will consolidate operational information and later add local AI assistance, without making AI output authoritative.

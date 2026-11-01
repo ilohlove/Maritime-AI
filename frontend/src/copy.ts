@@ -3,13 +3,11 @@
 export const copy = {
   product: "Maritime AI Assistant",
   modules: [
+    "AI Workspace",
+    "Knowledge & Files",
+    "Tasks & Reminders",
     "Dashboard",
     "Ship Profile",
-    "Documents",
-    "AI Assistant",
-    "Equipment",
-    "Checklists",
-    "Settings",
   ],
   unknown: "Not recorded",
   comingSoon: "Coming Soon",

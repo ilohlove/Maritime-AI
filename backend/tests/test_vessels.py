@@ -11,7 +11,7 @@ from sqlalchemy import inspect
 def test_startup_and_empty_database(client):
     assert client.get("/api/health").json() == {
         "status": "ok",
-        "ai_provider": "mock-development-only",
+        "ai_provider": "llama.cpp-local",
     }
     assert client.get("/api/vessels").json() == []
 
