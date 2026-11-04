@@ -6,6 +6,7 @@ import os
 import httpx
 from app.core.config import Settings
 from app.main import create_app
+from app.services.auth import hash_password
 from app.services.document_ai import ProviderRegistration
 from app.services.openai_provider import OpenAIProvider
 from openai import OpenAI
@@ -16,7 +17,14 @@ def create_e2e_app():
         raise RuntimeError(
             "Test factory requires MARITIME_E2E_SYNTHETIC=1 and a disposable database"
         )
-    settings = Settings(openai_api_key="synthetic-browser-test-only")
+    if os.environ.get("MARITIME_ENV", "development") != "development":
+        raise RuntimeError("Synthetic browser harness is forbidden outside development")
+    settings = Settings(
+        openai_api_key="synthetic-browser-test-only",
+        password_hash=hash_password("synthetic-browser-password"),
+        login_limit=100,
+        ai_daily_token_budget=10000000,
+    )
     app = create_app(settings)
 
     def handle(request):

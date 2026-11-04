@@ -2,9 +2,11 @@
 
 import base64
 import binascii
+import os
 import re
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from uuid import uuid4
 
 from pypdf import PdfReader
@@ -135,16 +137,26 @@ def extract(payload: DocumentImport) -> tuple[bytes, list[tuple[int, str]]]:
     return original, pages
 
 
-def import_document(sessions, payload: DocumentImport):
+def import_document(sessions, payload: DocumentImport, storage_dir: Path):
     original, pages = extract(payload)
     document = Document(
         id=str(uuid4()),
         title=payload.title.strip(),
         format=payload.format,
-        original=original,
+        original=b"",
         created_at=datetime.now(UTC).isoformat(),
     )
+    filename = document.id + ".bin"
+    destination = storage_dir / filename
+    created = False
     try:
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(original)
+            file.flush()
+            os.fsync(file.fileno())
+        document.original_path = filename
         with sessions.begin() as session:
             session.add(document)
             session.flush()
@@ -157,7 +169,12 @@ def import_document(sessions, payload: DocumentImport):
                             text=value[start : start + CHUNK_CHARS],
                         )
                     )
-    except SQLAlchemyError:
+    except (SQLAlchemyError, OSError):
+        try:
+            if created:
+                destination.unlink(missing_ok=True)
+        except OSError:
+            pass  # An orphan can be reconciled from the DB after storage recovery.
         raise WorkflowError(
             "storage_unavailable",
             "Cannot save the document. Check migrations and local storage.",

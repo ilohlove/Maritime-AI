@@ -2,6 +2,7 @@ from alembic import context
 from app.core.config import Settings
 from app.db.session import Base
 from app.models.document import Document, DocumentChunk  # noqa: F401
+from app.models.security import AuthSession, DailyUsage, RateWindow  # noqa: F401
 from app.models.vessel import Vessel  # noqa: F401 - register ORM metadata for autogeneration
 from sqlalchemy import create_engine, pool
 

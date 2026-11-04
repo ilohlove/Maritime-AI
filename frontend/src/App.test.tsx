@@ -78,7 +78,7 @@ it("creates a ship profile with unknowns as null", async () => {
   const payload = JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string);
   expect(payload.vessel_name).toBe("SYNTHETIC DEMO");
   expect(payload.mmsi).toBeNull();
-  expect(screen.getByText("Ship profile saved locally.")).toBeInTheDocument();
+  expect(screen.getByText("Ship profile saved.")).toBeInTheDocument();
 });
 
 it("patches only changed fields to preserve provenance", async () => {
@@ -128,7 +128,7 @@ it("shows connection failure and supports retry", async () => {
   const user = userEvent.setup();
   render(<App />);
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Local backend unavailable",
+    "Backend unavailable",
   );
   await user.click(screen.getByRole("button", { name: "Retry connection" }));
   expect(

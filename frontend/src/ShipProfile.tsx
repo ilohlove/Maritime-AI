@@ -100,7 +100,7 @@ export function ShipProfile({ vessel, onSaved }: Props) {
       );
       onSaved(saved);
       setDirty(new Set());
-      setStatus("Ship profile saved locally.");
+      setStatus("Ship profile saved.");
     } catch (error) {
       if (error instanceof ApiError) setErrors(error.details);
       setStatus(
@@ -119,7 +119,7 @@ export function ShipProfile({ vessel, onSaved }: Props) {
           <p>Leave unknown values blank. No information is inferred.</p>
         </div>
         <span className="pill">
-          {vessel ? "Stored locally" : "New profile"}
+          {vessel ? "Stored in private workspace" : "New profile"}
         </span>
       </div>
       {groups.map((group) => (

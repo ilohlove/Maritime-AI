@@ -30,3 +30,16 @@ Frontend and backend start, migrations initialize SQLite, form creation and edit
 ## Outside Task 01
 
 OCR, certificate expiry, curated maritime knowledge base, checklists, report generation, email drafting, local real-model inference, plugins, authentication, multi-user access and desktop installers are future work. Online document extraction and question answering are now within Task 01 scope. This is a development foundation, not a certified navigation or safety-critical system.
+
+## Task 02A cloud readiness extension
+
+Private APIs now require single-owner authentication, revocable expiring sessions,
+login rate limiting and secure bearer/cookie handling. Production requires HTTPS,
+trusted hosts/proxy configuration, exact credential-aware CORS, backend secrets,
+and acknowledged durable database/document storage. Anonymous OpenAI use is denied;
+per-owner rates, concurrency, input/output limits and an atomic conservative daily
+token allowance bound application inference. No automatic paid retries. GitHub
+Pages builds under `/Maritime-AI/` with a configurable HTTPS backend, memory-only
+auth and clear expiry/error states. Backup/recovery and deployment prerequisites
+are documented. No infrastructure deployment, PostgreSQL migration, Hybrid branch
+merge or Task 02B is authorized by this extension.

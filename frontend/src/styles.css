@@ -469,3 +469,10 @@ footer {
 .document-workspace .consent input { width: auto; margin-top: .3rem; }
 .document-answer { margin-top: 1.5rem; overflow-wrap: anywhere; }
 .document-answer blockquote { margin: .5rem 0; padding: .75rem; border-left: 3px solid currentColor; white-space: pre-wrap; }
+
+.auth-shell { max-width: 30rem; margin: 8vh auto; padding: 1rem; }
+.auth-shell form, .auth-shell label { display: grid; gap: .75rem; }
+.auth-shell form { gap: 1.25rem; }
+.auth-shell input { width: 100%; padding: .75rem; font: inherit; }
+.auth-shell [role="alert"] { overflow-wrap: anywhere; }
+.session-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem; padding: .5rem 1rem; }

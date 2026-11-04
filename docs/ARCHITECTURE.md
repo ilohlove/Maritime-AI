@@ -2,7 +2,7 @@
 
 ## Runtime and communication
 
-React + TypeScript runs in a local browser. Vite serves assets and proxies same-origin `/api` requests to FastAPI on 127.0.0.1:8000. FastAPI calls profile services, Pydantic validates boundary data, SQLAlchemy stores SQLite records. Alembic performs explicit migrations before startup; application import never creates tables. `GET /api/health` queries the schema, so missing migrations fail readiness.
+React + TypeScript runs locally or as static GitHub Pages assets at `/Maritime-AI/`. API requests use a configured HTTPS backend origin for Pages or the relative dev/same-origin `/api` proxy. FastAPI calls profile services, Pydantic validates boundary data, SQLAlchemy stores SQLite records. Alembic performs explicit migrations before startup; application import never creates tables. `GET /api/health` queries the schema, so missing migrations fail readiness.
 
 ```text
 Local browser → Vite / bundled frontend → /api → FastAPI
@@ -57,10 +57,37 @@ fields are supplied to OpenAI. Short documents may fit entirely in selected text
 
 ## Offline and security boundary
 
-Profiles, documents, assets and local services stay on the device. There are no CDN assets, remote fonts or telemetry. Online document questions send only the authorized question and bounded retrieved text through the OpenAI provider; credentials remain in the backend environment. Offline-first means a local service and locally served frontend, not a service-worker PWA. Dependency installation and eventual artifact distribution are separate concerns.
+Local installations keep profiles/documents on the device; cloud configurations store them on the authenticated backend and its durable volumes. There are no CDN assets, remote fonts or telemetry. Online document questions send only the authorized question and bounded retrieved text through the OpenAI provider; credentials remain in the backend environment. Offline-first means a local service and locally served frontend, not a service-worker PWA. Dependency installation and eventual artifact distribution are separate concerns.
 
-Loopback binding and explicit browser-origin write checks reduce exposure; CORS is restricted and JSON-only mutations reject form submissions. This is not multi-user security or local-process authentication. No secrets or operational data in Git. Database encryption, authenticated deployment, signed desktop builds, backups and audit history remain future security work. Windows operation uses standard Python/Node without Linux-only runtime dependencies.
+Loopback binding and explicit browser-origin write checks reduce exposure; CORS is restricted and JSON-only mutations reject form submissions. Owner authentication now protects private APIs; this is still not multi-user authorization or OS-process isolation. No secrets or operational data in Git. Authenticated cloud deployment is prepared and an operator backup tool is included; no deployment has occurred. Volume encryption is a hosting prerequisite; signed desktop builds and audit history remain future work. Windows operation uses standard Python/Node without Linux-only runtime dependencies.
 
 ## UI and localization
 
 Seven navigation modules; Dashboard, Ship Profile, Documents and AI Assistant are functional. The latter two share a focused document workspace with provider configuration status, model selection, request-specific consent, loading/errors and validated sources. Shared field definitions supply labels/units and controls; stable field keys match API names. Domain/UI files and central `copy.ts` establish the English locale boundary; remaining component text will be extracted when a second locale is added. Theme preference alone is stored in browser localStorage; vessel data comes from SQLite. No client-side duplicate vessel database. State is in memory while editing; navigation before saving currently discards edits.
+
+## Task 02A security and cloud boundaries
+
+Private HTTP routes are deny-by-default behind opaque, expiring, revocable owner
+sessions. Only login/health/CORS preflight is public; docs/OpenAPI are disabled.
+`auth.py` owns scrypt verification, hashed durable sessions, persistent login/AI
+rate windows and CSRF verification. Bearer tokens stay in frontend memory for
+cross-site Pages; cookie mode requires same-origin hosting and HttpOnly/Secure/
+SameSite=Strict plus CSRF. `AuthGate` handles login/logout and expiry/401 unmounts.
+
+`ai_limits.py` reserves a conservative worst-case two-call token allowance with
+SQLite immediate transactions and bounds process-wide concurrency. SDK requests
+have a conservative byte-based input bound, separate translation/answer output
+caps and zero retries. No inference starts if quota storage fails. Single-worker/
+replica operation is required; token quota is not an exact monetary spend cap.
+
+Migration 0003 adds sessions/rates/usage and a nullable original filename. New
+originals are UUID files in a configurable private directory; legacy BLOB originals
+remain compatible. SQLite stores extracted text and sources. Startup validates
+schema/FTS/session tables, paths, referenced files and volume write access. The
+operator must attest real durable storage; the app cannot prove a cloud mount.
+
+`start_backend.py` fixes one worker and trusts only explicit proxy IP/CIDRs.
+Production checks secrets, HTTPS origins, hosts and persistent storage; request
+middleware enforces auth, origin, bounded JSON and HTTPS. Explicit CORS includes
+credentials/Authorization/CSRF without wildcard origins. No deployment is performed.
+See [operations and security trade-offs](CLOUD_DEPLOYMENT.md).

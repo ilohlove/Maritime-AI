@@ -10,6 +10,7 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(200))
     format: Mapped[str] = mapped_column(String(10))
     original: Mapped[bytes] = mapped_column(LargeBinary)
+    original_path: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40))
 
 

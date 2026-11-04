@@ -11,6 +11,7 @@ def answer_question(
     document_id: str,
     payload: Question,
     registration: ProviderRegistration | None,
+    inference_guard,
 ):
     if registration is None:
         raise WorkflowError(
@@ -23,6 +24,11 @@ def answer_question(
             403,
         )
     document = documents.get_document(sessions, document_id)
+    with inference_guard():
+        return _infer(sessions, document_id, payload, registration, document)
+
+
+def _infer(sessions, document_id, payload, registration, document):
     provider = registration.create(payload.model)
     try:
         queries = provider.query_terms(payload.question)

@@ -53,15 +53,23 @@ def create_document_router(sessions, settings):
                 "Provide title, format (text/pdf) and valid content within import limits.",
                 422,
             ) from None
-        return await run_in_threadpool(documents.import_document, sessions, payload)
+        return await run_in_threadpool(
+            documents.import_document,
+            sessions,
+            payload,
+            request.app.state.document_directory,
+        )
 
     @router.post("/documents/{document_id}/questions")
     def question(document_id: UUID, payload: Question, request: Request):
+        if payload.provider == "openai" and payload.model not in settings.openai_models:
+            raise WorkflowError("invalid_model", "Select a configured model.", 422)
         return answer_question(
             sessions,
             str(document_id),
             payload,
             request.app.state.document_providers.get(payload.provider),
+            lambda: request.app.state.ai_guard.request(request.state.user),
         )
 
     return router

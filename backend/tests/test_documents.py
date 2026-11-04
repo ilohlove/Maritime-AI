@@ -11,6 +11,7 @@ from app.schemas.document import GroundedAnswer, QueryTerms
 from app.services.ai import MockAIProvider
 from app.services.document_ai import ProviderRegistration, WorkflowError
 from app.services.openai_provider import OpenAIProvider
+from conftest import TEST_HASH, migrate, sign_in
 from fastapi.testclient import TestClient
 from openai import OpenAI
 from pypdf import PdfWriter
@@ -201,10 +202,17 @@ def test_pdf_extract_import_restart_and_fts(client, configured_app):
             in connection.execute(text("SELECT text FROM document_chunks")).scalar()
         )
         assert (
-            connection.execute(text("SELECT original FROM documents")).scalar() == raw
+            connection.execute(text("SELECT original FROM documents")).scalar() == b""
         )
+        filename = connection.execute(
+            text("SELECT original_path FROM documents")
+        ).scalar()
+        assert (
+            configured_app[0].state.document_directory / filename
+        ).read_bytes() == raw
     restarted = create_app(configured_app[1])
     with TestClient(restarted) as second:
+        sign_in(second)
         assert second.get("/api/documents").json()[0]["id"] == response.json()["id"]
     with restarted.state.engine.connect() as connection:
         assert (
@@ -246,8 +254,12 @@ def test_provider_status_never_exposes_key(tmp_path):
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'status.db'}",
         openai_api_key="synthetic-secret",
+        password_hash=TEST_HASH,
     )
-    with TestClient(create_app(settings)) as client:
+    app = create_app(settings)
+    migrate(app)
+    with TestClient(app) as client:
+        sign_in(client)
         response = client.get("/api/ai/providers")
         assert response.json()["providers"][0]["status"] == "configured_unverified"
         assert "synthetic-secret" not in response.text
@@ -418,7 +430,9 @@ def test_upgrade_existing_database_preserves_vessel(tmp_path):
     from alembic.config import Config
     from app.db.session import create_database
 
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'legacy.db'}")
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'legacy.db'}", password_hash=TEST_HASH
+    )
     engine, _ = create_database(settings.database_url)
     config = Config("alembic.ini")
     vessel_id = str(uuid4())
@@ -433,7 +447,10 @@ def test_upgrade_existing_database_preserves_vessel(tmp_path):
         )
         command.upgrade(config, "head")
     engine.dispose()
-    with TestClient(create_app(settings)) as client:
+    app = create_app(settings)
+    migrate(app)
+    with TestClient(app) as client:
+        sign_in(client)
         assert (
             client.get(f"/api/vessels/{vessel_id}").json()["vessel_name"]
             == "SYNTHETIC LEGACY"
@@ -474,3 +491,24 @@ def test_request_and_extracted_text_limits(client):
     )
     assert response.status_code == 413
     assert client.get("/api/documents").json() == []
+
+
+def test_openai_configured_output_limits_and_input_cap(monkeypatch):
+    from dataclasses import replace
+
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(
+            200, json=completion({"english": "lifeboat", "vietnamese": "xuồng"})
+        )
+
+    provider, _ = sdk_provider(monkeypatch, handler)
+    provider.query_terms("test")
+    assert seen[0]["max_completion_tokens"] == 512
+    provider.settings = replace(provider.settings, ai_max_input_tokens=100)
+    with pytest.raises(WorkflowError) as error:
+        provider.query_terms("test")
+    assert error.value.code == "ai_input_limit"
+    assert len(seen) == 1

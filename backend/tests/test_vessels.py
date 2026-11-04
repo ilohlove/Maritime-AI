@@ -3,16 +3,14 @@ from alembic import command
 from alembic.config import Config
 from app.main import create_app
 from app.services.ai import AIProvider, MockAIProvider
+from conftest import sign_in
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
 
 
 # Synthetic test identifiers; these records do not describe a real vessel.
 def test_startup_and_empty_database(client):
-    assert client.get("/api/health").json() == {
-        "status": "ok",
-        "ai_provider": "mock-development-only",
-    }
+    assert client.get("/api/health").json() == {"status": "ok"}
     assert client.get("/api/vessels").json() == []
 
 
@@ -150,11 +148,13 @@ def test_missing_vessel(client):
 def test_persistence_after_restart(configured_app):
     app, settings = configured_app
     with TestClient(app) as first:
+        sign_in(first)
         vessel = first.post(
             "/api/vessels",
             json={"vessel_name": "SYNTHETIC PERSISTENCE", "summer_draft": "6.125"},
         ).json()
     with TestClient(create_app(settings)) as restarted:
+        sign_in(restarted)
         assert restarted.get(f"/api/vessels/{vessel['id']}").json() == vessel
         assert len(restarted.get("/api/vessels").json()) == 1
 

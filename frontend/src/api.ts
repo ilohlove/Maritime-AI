@@ -1,3 +1,5 @@
+import { getSession, expireSession } from "./session";
+
 export type Provenance = {
   extraction_method: "user_entered" | "imported" | "ai_extracted";
   verification_status: "verified" | "unverified";
@@ -25,13 +27,19 @@ export async function request<T>(
 ): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, options);
+    const base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+    const session = getSession();
+    const headers = new Headers(options?.headers);
+    if (session?.transport === "bearer" && session.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
+    if (session?.transport === "cookie" && options?.method && options.method !== "GET") headers.set("X-CSRF-Token", session.csrf_token);
+    response = await fetch(`${base}/api${path}`, { ...options, headers, credentials: import.meta.env.VITE_AUTH_TRANSPORT === "cookie" ? "include" : "omit", cache: "no-store" });
   } catch {
     throw new Error(
-      "Cannot reach the local backend. Check that it is running, then retry. Your entries are retained.",
+      "Cannot reach the backend. Check your connection and backend configuration, then retry. Your entries are retained.",
     );
   }
   if (!response.ok) {
+    if (response.status === 401 && path !== "/auth/login") expireSession();
     const body = await response.json().catch(() => ({}));
     const details: Record<string, string> = {};
     if (Array.isArray(body.detail)) {

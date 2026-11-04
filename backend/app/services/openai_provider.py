@@ -29,6 +29,7 @@ class OpenAIProvider:
             )
         if model not in settings.openai_models:
             raise WorkflowError("invalid_model", "Select a configured model.", 422)
+        self.settings = settings
         self.model = model
         self.client = OpenAI(
             api_key=settings.openai_api_key,
@@ -40,15 +41,36 @@ class OpenAIProvider:
         self.client.close()
 
     def _parse(self, schema, system: str, data: dict):
+        # UTF-8 bytes conservatively upper-bound tokenizer tokens; include schema
+        # and a fixed envelope allowance. Never rely on model usage refunds.
+        user_content = json.dumps(data, ensure_ascii=False)
+        input_bound = (
+            len(
+                (
+                    system + user_content + json.dumps(schema.model_json_schema())
+                ).encode()
+            )
+            + 2048
+        )
+        if input_bound > self.settings.ai_max_input_tokens:
+            raise WorkflowError(
+                "ai_input_limit",
+                "Evidence exceeds the configured AI input limit. Ask a narrower question.",
+                413,
+            )
         try:
             completion = self.client.chat.completions.parse(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(data, ensure_ascii=False)},
+                    {"role": "user", "content": user_content},
                 ],
                 response_format=schema,
-                max_completion_tokens=2500,
+                max_completion_tokens=(
+                    self.settings.ai_translation_tokens
+                    if schema is QueryTerms
+                    else self.settings.ai_output_tokens
+                ),
                 store=False,
             )
             choice = completion.choices[0]

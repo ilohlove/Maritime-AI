@@ -1,0 +1,36 @@
+name: Pages build only (no deployment)
+on:
+  workflow_dispatch:
+    inputs:
+      backend_api_origin:
+        description: HTTPS backend origin, e.g. https://api.example.invalid
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:pages
+        env:
+          VITE_API_BASE_URL: ${{ inputs.backend_api_origin }}
+          VITE_AUTH_TRANSPORT: bearer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pages-static-build
+          path: frontend/dist
+          include-hidden-files: true

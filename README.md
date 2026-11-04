@@ -8,6 +8,15 @@ A local vessel workspace and API-first maritime document assistant. Dashboard an
 - Windows, Linux or macOS. CPU only; no GPU, model, API key or cloud service required.
 - Internet is needed for dependency installation and online document questions. Vessel profiles and document import stay local and work without an API key. Frontend assets/fonts are bundled or system-local.
 
+## Cloud readiness and authentication
+
+Task 02A adds mandatory authentication for private APIs and prepares GitHub Pages
+plus an HTTPS backend. **Nothing has been deployed.** See
+[cloud setup, security decisions, environment reference and backup/recovery](docs/CLOUD_DEPLOYMENT.md).
+The cloud runtime is one owner, one worker/replica and mounted persistent storage.
+GitHub Pages uses memory-only bearer sessions, avoiding third-party mobile cookies.
+All private UI/data requires sign-in; reloading the page requires sign-in again.
+
 ## Install
 
 From the repository root:
@@ -26,7 +35,18 @@ npm --prefix frontend ci
 
 ## Run locally
 
-With the virtual environment active, run from the repository root:
+With the virtual environment active, first generate a private owner password
+hash and configure `MARITIME_PASSWORD_HASH` in the backend environment. For example,
+on Linux/macOS (the password is read interactively, not placed in shell history):
+
+```sh
+export MARITIME_PASSWORD_HASH="$(python scripts/hash_password.py)"
+```
+
+On PowerShell, capture the generator output in `$env:MARITIME_PASSWORD_HASH`.
+The app does not auto-load `.env`; never commit passwords or hashes. Set optional
+`MARITIME_ADMIN_USERNAME` (default `admin`). Without a hash, development APIs stay
+locked. Then run from the repository root:
 
 ```sh
 python scripts/dev.py
@@ -93,13 +113,13 @@ Default database: `~/.maritime-ai/maritime.db` (Windows: the user home directory
 
 `MARITIME_ALLOWED_ORIGINS` is a comma-separated explicit origin list, defaulting to `http://127.0.0.1:5173,http://localhost:5173`. Keep it limited to trusted local frontend origins. Vite proxies relative `/api` requests to the backend, including in preview mode. Do not expose either service on a vessel LAN.
 
-Operational records and imported original documents remain local by default. There is no telemetry, remote font or arbitrary filesystem API. Only an explicitly authorized document question sends the question and bounded retrieved text to OpenAI; vessel profile data is never included automatically. SQLite is not encrypted; OS account permissions and device disk encryption protect stored data. This single-user foundation has no login or authorization boundary against other local processes. Stop the backend before copying the database for backup. Backups and recovery UI are future work. Never commit operational databases or vessel documents.
+Operational records and imported original documents remain local by default. There is no telemetry, remote font or arbitrary filesystem API. Only an explicitly authorized document question sends the question and bounded retrieved text to OpenAI; vessel profile data is never included automatically. SQLite is not encrypted; OS account permissions and device disk encryption protect stored data. Private APIs now require owner authentication even on localhost. This remains a single-owner application, not OS-process isolation or a multi-tenant service. Back up SQLite and original files together with `scripts/backup.py`; see the cloud operations guide. Recovery UI remains future work. Never commit operational databases or vessel documents.
 
 ## Online document questions
 
 Install the updated backend lock file, then apply `alembic upgrade head` from
-`backend` before starting the backend. Migration 0002 adds the library and FTS5
-index without changing vessel records. The default SQLite build must support
+`backend` before starting the backend. Migration 0002 adds the library/FTS5; migration 0003 adds durable authentication,
+rate/budget state and file-backed originals without changing vessel records. The default SQLite build must support
 FTS5. Keep a local backup before upgrading an operational database.
 
 Set the following variables **only in the backend process environment**. The app
@@ -111,14 +131,14 @@ does not auto-load `.env` files; do not put keys in frontend/Vite variables.
 | `OPENAI_MODEL` | `gpt-4.1-mini`; choose a model supporting structured chat outputs |
 | `OPENAI_MODELS` | Comma-separated allowed models; defaults to `OPENAI_MODEL`, must contain it |
 | `OPENAI_TIMEOUT_SECONDS` | `30`, greater than 0 and at most 120, per SDK request |
-| `OPENAI_MAX_RETRIES` | `0`, integer 0–2; no provider fallback |
+| `OPENAI_MAX_RETRIES` | `0` required; automatic paid retries are disabled, no fallback |
 
 The existing `MARITIME_DATA_DIR`, `MARITIME_DATABASE_URL` and
 `MARITIME_ALLOWED_ORIGINS` variables retain their meanings. A key is not needed to
 start the application, migrate, use profiles or import documents. Restart the
 backend after configuration changes. `GET /api/ai/providers` reports configuration,
-not verified connectivity; it never returns credentials. The legacy health
-endpoint's `ai_provider` field still identifies the old development mock.
+not verified connectivity; it requires login and never returns credentials. The
+public health endpoint now returns only `{"status":"ok"}`.
 
 Open **Documents** or **AI Assistant**, import a PDF or `.txt`, select it, choose
 an allowed model and type a question in Vietnamese or English. Authorize that
@@ -138,8 +158,9 @@ not printed page labels; text pages are separated by form-feed characters.
 Limits: original file 10 MB, PDF at most 300 pages, extracted text at most 1 million
 characters. Encrypted, malformed and scanned PDFs without readable text are
 rejected. Import accepts JSON (`format: text` with UTF-8 text or `format: pdf` with
-base64 bytes). Originals and extracted chunks are stored in SQLite. Treat that
-file and its backups as sensitive. No question history is persisted.
+base64 bytes). New originals live in `MARITIME_DOCUMENTS_DIR` (default: a
+`documents` sibling of the database); chunks and legacy originals remain in SQLite.
+Treat both locations and backups as sensitive. No question history is persisted.
 
 Retrieval errors, provider errors, model refusal and citation failure have
 separate actionable codes; an empty search result never claims the document lacks
@@ -179,9 +200,9 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The document Q&A browser case requires the synthetic SDK harness described below; it is explicitly skipped against a normal backend. Before the existing profile E2E cases, start the backend on port 8000 using a **disposable migrated database**: set `MARITIME_DATA_DIR` to a new temporary directory in that terminal, run `alembic upgrade head`, then `uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000` from `backend`. E2E writes a synthetic profile and edits the first profile; never run it against operational data. Playwright starts Vite automatically. The smoke test covers actual API/database creation, edit, reload and mobile layout. Backend tests separately prove database persistence across application restart. CI runs backend tests, frontend unit tests and production build on Ubuntu and Windows; browser smoke is optional.
+Configure `MARITIME_PASSWORD_HASH` for the isolated backend and `MARITIME_E2E_PASSWORD` for Playwright. The document Q&A browser case requires the synthetic SDK harness described below; it is explicitly skipped against a normal backend. Before the existing profile E2E cases, start the backend on port 8000 using a **disposable migrated database**: set `MARITIME_DATA_DIR` to a new temporary directory in that terminal, run `alembic upgrade head`, then `uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000` from `backend`. E2E writes a synthetic profile and edits the first profile; never run it against operational data. Playwright starts Vite automatically. The smoke test covers actual API/database creation, edit, reload and mobile layout. Backend tests separately prove database persistence across application restart. CI runs backend tests, frontend unit tests and production build on Ubuntu and Windows; browser smoke is optional.
 
-To run **all three browser cases** without paid API calls, use a new empty
+To run **all four browser cases** without paid API calls, use a new empty
 local directory as `MARITIME_DATA_DIR` and start the test-only backend from
 `backend` (with the virtual environment active):
 
@@ -197,12 +218,17 @@ Then from `frontend`, with `MARITIME_E2E_SYNTHETIC=1` also set in that terminal:
 npm run test:e2e
 ```
 
-The harness uses real HTTP, SQLite, FTS5, extraction and citation validation with
+The harness sets an unmistakably synthetic test-only password (`synthetic-browser-password`), used automatically by Playwright only with its synthetic flag. It is never a production default. The harness uses real HTTP, SQLite, FTS5, extraction and citation validation with
 the official SDK backed by an in-memory mock transport. Responses are marked
 **SYNTHETIC SDK RESPONSE**. Never deploy that test factory. Optionally set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an installed Chromium executable instead of
 downloading Playwright's browser. Mobile checks use Chromium device emulation;
 they do not establish physical Android validation.
+
+For GitHub Pages, set the non-secret `VITE_API_BASE_URL` to the later HTTPS backend
+origin and run `npm run build:pages` from `frontend`. Assets use `/Maritime-AI/`.
+The included manual workflow only builds an artifact and has no deployment step.
+See the [cloud guide](docs/CLOUD_DEPLOYMENT.md) before configuring public hosting.
 
 ## Repository
 

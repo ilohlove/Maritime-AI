@@ -11,3 +11,6 @@
 - **Commercial packaging:** Windows installer, signed offline updates, data migration/backups, security review, licensing and measured performance targets.
 
 Each milestone needs user approval, explicit acceptance criteria and safety/data-integrity review. No milestone beyond Task 01 is automatically started.
+
+- **Task 02A:** private-owner auth, cost/rate guards, production storage/network validation and Pages build preparation. No deployment in this task.
+- **Task 02B:** remains unstarted; requires a separate approved scope and staging prerequisites from the cloud guide.

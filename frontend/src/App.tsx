@@ -61,7 +61,7 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <span className="local-dot" /> Local workspace
+          <span className="local-dot" /> Private workspace
           <p>No cloud AI required</p>
         </div>
       </aside>
@@ -82,11 +82,11 @@ export default function App() {
         <main>
           {loading ? (
             <div role="status" className="card">
-              Loading local vessel data…
+              Loading workspace data…
             </div>
           ) : error ? (
             <div role="alert" className="card">
-              <h2>Local backend unavailable</h2>
+              <h2>Backend unavailable</h2>
               <p>{error}</p>
               <button onClick={() => void load()}>Retry connection</button>
             </div>
@@ -101,7 +101,7 @@ export default function App() {
                 </h2>
                 <p>
                   {vessel
-                    ? "Vessel particulars from your local database."
+                    ? "Vessel particulars from your private workspace."
                     : "Create a ship profile to establish your vessel’s operational record."}
                 </p>
                 <button
@@ -131,7 +131,7 @@ export default function App() {
                     <dt>Profile</dt>
                     <dd>
                       {vessel
-                        ? "Saved in local SQLite database"
+                        ? "Saved in private workspace"
                         : "Not created"}
                     </dd>
                   </div>
@@ -181,7 +181,7 @@ export default function App() {
           )}
         </main>
         <footer>
-          {copy.product} <span>Local data · Task 01 foundation</span>
+          {copy.product} <span>Private data · Maritime workspace</span>
         </footer>
       </div>
     </div>

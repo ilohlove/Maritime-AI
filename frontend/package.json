@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
+    "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
+    "build:pages": "tsc -b && vite build --mode pages"
   },
   "dependencies": {
     "react": "19.2.0",

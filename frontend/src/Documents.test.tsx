@@ -9,8 +9,8 @@ function response(data: unknown, ok = true) { return Promise.resolve({ ok, json:
 function setup(result: unknown = answer, ok = true, configured = true) {
   const fetcher = vi.fn((url: string, options?: RequestInit) => {
     if (url === "/api/ai/providers") return response({ providers: config.providers.map((p) => ({ ...p, configured })) });
-    if (url === "/api/documents" && !options) return response(library);
-    if (url === "/api/documents" && options) return response({ id: "imported", title: "test.txt", format: "text" });
+    if (url === "/api/documents" && !options?.method) return response(library);
+    if (url === "/api/documents" && options?.method) return response({ id: "imported", title: "test.txt", format: "text" });
     return response(result, ok);
   });
   vi.stubGlobal("fetch", fetcher);
@@ -75,17 +75,17 @@ it("imports locally without an inference request", async () => {
   const file = new File(["SYNTHETIC ONLY"], "test.txt", { type: "text/plain" });
   Object.defineProperty(file, "text", { value: async () => "SYNTHETIC ONLY" }); // jsdom lacks Blob.text
   await user.upload(screen.getByLabelText("Import document"), file);
-  expect(await screen.findByText(/Document imported locally/)).toBeInTheDocument();
+  expect(await screen.findByText(/Document imported./)).toBeInTheDocument();
   expect(screen.getByLabelText("Selected document")).toHaveValue("imported");
   expect(fetcher.mock.calls.some(([url]) => url.includes("/questions"))).toBe(false);
-  const payload = fetcher.mock.calls.find(([url, options]) => url === "/api/documents" && options);
+  const payload = fetcher.mock.calls.find(([url, options]) => url === "/api/documents" && options?.method);
   expect(JSON.parse(payload?.[1]?.body as string).content).toBe("SYNTHETIC ONLY");
 });
 
 it("reports and retries library loading failures", async () => {
   const fetcher = vi.fn().mockRejectedValueOnce(new Error("offline")).mockImplementation((url: string) => response(url.includes("providers") ? config : library));
   vi.stubGlobal("fetch", fetcher); render(<Documents />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the local backend");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the backend");
   await userEvent.click(screen.getByRole("button", { name: "Reload library / configuration" }));
   await waitFor(() => expect(screen.getByLabelText("Selected document")).toHaveValue("synthetic-doc"));
 });

@@ -40,7 +40,7 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
       setProviderId(configuration.providers[0]?.id ?? "openai");
       setModel(configuration.providers[0]?.default_model ?? "");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cannot load local documents.");
+      setError(e instanceof Error ? e.message : "Cannot load documents.");
     } finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
@@ -64,7 +64,7 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
       });
       setDocuments((items) => [imported, ...items]);
       setDocumentId(imported.id); setConsent(false); setAnswer(null);
-      setNotice("Document imported locally. No data was sent to an AI service.");
+      setNotice("Document imported. No data was sent to an AI service.");
     } catch (e) { setError(e instanceof Error ? e.message : "Import failed."); }
     finally { setBusy(false); }
   }
@@ -85,15 +85,15 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
   }
 
   return <section className="card document-workspace">
-    <h2>{assistant ? "Ask a document" : "Local document library"}</h2>
-    <p>Original files and extracted text stay in your local SQLite database. Import a text-based PDF or UTF-8 text file (up to 10 MB). Scanned PDFs require OCR.</p>
+    <h2>{assistant ? "Ask a document" : "Private document library"}</h2>
+    <p>Documents are stored on your configured backend. Importing does not send them to an AI provider. Import a text-based PDF or UTF-8 text file (up to 10 MB). Scanned PDFs require OCR.</p>
     <label>Import document
       <input type="file" accept=".pdf,.txt" disabled={busy || loading} onChange={(e) => {
         const file = e.target.files?.[0]; e.target.value = "";
         if (file) void importFile(file);
       }} />
     </label>
-    {loading && <p role="status">Loading local library and provider configuration…</p>}
+    {loading && <p role="status">Loading library and provider configuration…</p>}
     {error && <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => void load()}>Reload library / configuration</button></div>}
     {notice && <p role="status">{notice}</p>}
     {!loading && documents.length === 0 && <p>No documents imported. Import a document to begin.</p>}
