@@ -28,7 +28,7 @@ it("renders empty dashboard and navigates to actual form and planned modules", a
   ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Create ship profile" }));
   expect(screen.getByLabelText("Vessel Name")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Documents" }));
+  await user.click(screen.getByRole("button", { name: "Equipment" }));
   expect(screen.getByText("Coming Soon")).toBeInTheDocument();
 });
 

@@ -29,3 +29,11 @@ The cloud execution sandbox blocks event-loop/socket operations, so backend and 
 - The remote initially advertised no refs and no main branch. No main branch was created or modified. PR creation requires an existing base branch; GitHub API access also returned Forbidden in this environment.
 
 See README for exact installation and execution commands. Task 02 is not started.
+
+## Online API Task 01 — 2026-11-05
+
+66 backend tests, 17 frontend tests, production build and 3 real Chromium cases
+passed. OpenAI SDK transport was mocked; no live API verification is claimed.
+Migration from a populated vessel-only database and a real production-process
+restart smoke passed. Full commands, evidence, limitations and the changed-file
+list are in [Online API implementation](ONLINE_API_IMPLEMENTATION.md).

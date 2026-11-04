@@ -22,16 +22,45 @@ Every non-null submitted field receives provenance: `extraction_method` (user_en
 
 ## AI and future skills
 
-`AIProvider` is a minimal Python Protocol with `name` and `respond(prompt)`. Only `MockAIProvider` exists and returns a fixed development disclaimer without echoing private prompts or providing maritime advice. No AI endpoint is exposed. Future Ollama/llama.cpp adapters should add capability/timeout contracts only when needed, remain optional, and never automatically verify extracted particulars.
+The original `AIProvider`/`MockAIProvider` remains intact. Document inference uses
+`DocumentAIProvider` (`query_terms`, `answer`, `close`) and provider registrations
+with explicit online metadata. `openai_provider.py` owns SDK response parsing,
+secret access, timeouts, retries and sanitized errors. No SDK objects cross that
+boundary. A local adapter can implement the same Protocol and register with
+`online=False`; this checkout has no Qwen3/llama.cpp implementation.
+
+HTTP routes only validate/dispatch. `document_workflow.py` enforces per-request
+consent before provider creation and coordinates retrieval, inference and citation
+validation, closing provider resources on both success and failure. No provider
+fallback is configured. `documents.py` extracts PDF/text locally and searches
+FTS5; `citations.py` checks exact quote membership and allowed excerpt IDs and
+constructs document/page references from local metadata. Source contents never
+become system messages or executable tools. Semantic entailment of model prose
+is not guaranteed by citation integrity.
+
+Migration 0002 adds `documents` (including original bytes), `document_chunks` and
+an external-content FTS5 index with insert/update/delete triggers. Import is one
+transaction. Unicode61 search removes diacritics and uses bounded OR keyword
+queries ordered by BM25. An authorized OpenAI call translates the question to
+English/Vietnamese terms before local retrieval. No embeddings or local inference
+runtime is required. Six overlapping chunks of at most 1,600 characters bound
+context to 9,600 characters. FTS/storage failures remain distinct from no matches.
+
+Document API: `GET/POST /api/documents`, `GET /api/ai/providers`,
+`POST /api/documents/{id}/questions`. Import uses bounded JSON/base64 under the
+existing JSON-only Origin guard; there is no arbitrary filesystem path input.
+Answer claims each contain a source with document UUID, local title, physical
+page, chunk ID and exact quote. Neither original document bytes nor vessel profile
+fields are supplied to OpenAI. Short documents may fit entirely in selected text.
 
 `skills/` currently contains design notes only. A future skill engine should register explicit, versioned skills with typed inputs/outputs and permission requirements. It must not evaluate arbitrary user code. Do not introduce a plugin loader, background job infrastructure or an inference runtime in Task 01.
 
 ## Offline and security boundary
 
-Data, assets and processes stay on the device. There are no CDN assets, fonts, telemetry, models, API keys or external requests during normal operation. Offline-first means a local service and locally served frontend, not a service-worker PWA. Dependency installation and eventual artifact distribution are separate concerns.
+Profiles, documents, assets and local services stay on the device. There are no CDN assets, remote fonts or telemetry. Online document questions send only the authorized question and bounded retrieved text through the OpenAI provider; credentials remain in the backend environment. Offline-first means a local service and locally served frontend, not a service-worker PWA. Dependency installation and eventual artifact distribution are separate concerns.
 
 Loopback binding and explicit browser-origin write checks reduce exposure; CORS is restricted and JSON-only mutations reject form submissions. This is not multi-user security or local-process authentication. No secrets or operational data in Git. Database encryption, authenticated deployment, signed desktop builds, backups and audit history remain future security work. Windows operation uses standard Python/Node without Linux-only runtime dependencies.
 
 ## UI and localization
 
-Seven navigation modules, only two functional. Shared field definitions supply labels/units and controls; stable field keys match API names. Domain/UI files and central `copy.ts` establish the English locale boundary; remaining component text will be extracted when a second locale is added. Theme preference alone is stored in browser localStorage; vessel data comes from SQLite. No client-side duplicate vessel database. State is in memory while editing; navigation before saving currently discards edits.
+Seven navigation modules; Dashboard, Ship Profile, Documents and AI Assistant are functional. The latter two share a focused document workspace with provider configuration status, model selection, request-specific consent, loading/errors and validated sources. Shared field definitions supply labels/units and controls; stable field keys match API names. Domain/UI files and central `copy.ts` establish the English locale boundary; remaining component text will be extracted when a second locale is added. Theme preference alone is stored in browser localStorage; vessel data comes from SQLite. No client-side duplicate vessel database. State is in memory while editing; navigation before saving currently discards edits.

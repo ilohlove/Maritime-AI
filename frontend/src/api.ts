@@ -42,7 +42,9 @@ export async function request<T>(
       details,
       typeof body.detail === "string"
         ? body.detail
-        : "Unable to save. Review the validation errors below.",
+        : typeof body.detail?.message === "string"
+          ? `${body.detail.code}: ${body.detail.message}`
+          : "Unable to complete request. Review the validation errors below.",
     );
   }
   return response.json() as Promise<T>;

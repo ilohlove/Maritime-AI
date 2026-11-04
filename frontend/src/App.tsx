@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listVessels, type Vessel } from "./api";
 import { ShipProfile } from "./ShipProfile";
 import { copy } from "./copy";
+import { Documents } from "./Documents";
 
 export default function App() {
   const [module, setModule] = useState("Dashboard");
@@ -152,7 +153,7 @@ export default function App() {
                   </div>
                   <div>
                     <dt>AI engine</dt>
-                    <dd>Mock provider · No model installed</dd>
+                    <dd>Document AI configuration in AI Assistant</dd>
                   </div>
                 </dl>
                 <p className="muted">
@@ -163,6 +164,8 @@ export default function App() {
             </>
           ) : module === "Ship Profile" ? (
             <ShipProfile vessel={vessel} onSaved={setVessel} />
+          ) : module === "Documents" || module === "AI Assistant" ? (
+            <Documents assistant={module === "AI Assistant"} />
           ) : (
             <section className="card coming-soon">
               <span className="pill">{copy.comingSoon}</span>

@@ -2,10 +2,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
+from app.api.documents import create_document_router
 from app.api.vessels import create_vessel_router
 from app.core.config import Settings
 from app.db.session import create_database
+from app.services.document_ai import ProviderRegistration, WorkflowError
+from app.services.openai_provider import OpenAIProvider
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -25,6 +29,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.state.engine = engine
+    app.state.document_providers = {
+        "openai": ProviderRegistration(
+            True, lambda model: OpenAIProvider(settings, model)
+        )
+    }
+
+    @app.exception_handler(WorkflowError)
+    async def workflow_error(request, error):
+        return JSONResponse(
+            {"detail": {"code": error.code, "message": error.message}},
+            status_code=error.status,
+        )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
@@ -60,4 +77,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "ai_provider": "mock-development-only"}
 
     app.include_router(create_vessel_router(sessions))
+    app.include_router(create_document_router(sessions, settings))
     return app

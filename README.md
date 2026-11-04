@@ -1,12 +1,12 @@
 # Maritime AI Assistant
 
-An offline-first vessel operations workspace for Deck Officers, Chief Officers and Masters. Task 01 provides a real SQLite-backed Ship Profile and Dashboard. Other modules are explicitly marked **Coming Soon**. The development mock provides no maritime advice.
+A local vessel workspace and API-first maritime document assistant. Dashboard and Ship Profile work offline. Documents and AI Assistant support local PDF/text import and consent-gated OpenAI question answering with validated source quotes. Equipment, Checklists and Settings remain planned. The legacy development mock is preserved and provides no maritime advice.
 
 ## Requirements
 
 - Python 3.11+ (CI: 3.12), Node.js 22.12+ (CI: 24), npm.
 - Windows, Linux or macOS. CPU only; no GPU, model, API key or cloud service required.
-- Internet is needed to install dependencies initially. Normal application use is local and does not require Internet. Frontend assets/fonts are bundled or system-local.
+- Internet is needed for dependency installation and online document questions. Vessel profiles and document import stay local and work without an API key. Frontend assets/fonts are bundled or system-local.
 
 ## Install
 
@@ -93,7 +93,68 @@ Default database: `~/.maritime-ai/maritime.db` (Windows: the user home directory
 
 `MARITIME_ALLOWED_ORIGINS` is a comma-separated explicit origin list, defaulting to `http://127.0.0.1:5173,http://localhost:5173`. Keep it limited to trusted local frontend origins. Vite proxies relative `/api` requests to the backend, including in preview mode. Do not expose either service on a vessel LAN.
 
-Operational records remain local. There is no telemetry, external AI call, remote font, document upload or arbitrary filesystem API. SQLite is not encrypted; OS account permissions and device disk encryption protect stored data. This single-user foundation has no login or authorization boundary against other local processes. Stop the backend before copying the database for backup. Backups and recovery UI are future work. Never commit operational databases or vessel documents.
+Operational records and imported original documents remain local by default. There is no telemetry, remote font or arbitrary filesystem API. Only an explicitly authorized document question sends the question and bounded retrieved text to OpenAI; vessel profile data is never included automatically. SQLite is not encrypted; OS account permissions and device disk encryption protect stored data. This single-user foundation has no login or authorization boundary against other local processes. Stop the backend before copying the database for backup. Backups and recovery UI are future work. Never commit operational databases or vessel documents.
+
+## Online document questions
+
+Install the updated backend lock file, then apply `alembic upgrade head` from
+`backend` before starting the backend. Migration 0002 adds the library and FTS5
+index without changing vessel records. The default SQLite build must support
+FTS5. Keep a local backup before upgrading an operational database.
+
+Set the following variables **only in the backend process environment**. The app
+does not auto-load `.env` files; do not put keys in frontend/Vite variables.
+
+| Variable | Default / requirement |
+| --- | --- |
+| `OPENAI_API_KEY` | Required only for online questions; backend secret, never committed |
+| `OPENAI_MODEL` | `gpt-4.1-mini`; choose a model supporting structured chat outputs |
+| `OPENAI_MODELS` | Comma-separated allowed models; defaults to `OPENAI_MODEL`, must contain it |
+| `OPENAI_TIMEOUT_SECONDS` | `30`, greater than 0 and at most 120, per SDK request |
+| `OPENAI_MAX_RETRIES` | `0`, integer 0–2; no provider fallback |
+
+The existing `MARITIME_DATA_DIR`, `MARITIME_DATABASE_URL` and
+`MARITIME_ALLOWED_ORIGINS` variables retain their meanings. A key is not needed to
+start the application, migrate, use profiles or import documents. Restart the
+backend after configuration changes. `GET /api/ai/providers` reports configuration,
+not verified connectivity; it never returns credentials. The legacy health
+endpoint's `ai_provider` field still identifies the old development mock.
+
+Open **Documents** or **AI Assistant**, import a PDF or `.txt`, select it, choose
+an allowed model and type a question in Vietnamese or English. Authorize that
+individual request using the checkbox, then ask. Changing the question, document,
+model or provider clears consent, as does every submitted attempt. Import alone
+never calls OpenAI. Both pages expose the same document workflow.
+
+Each authorized request first sends the question alone for English/Vietnamese
+search translation. SQLite FTS5 then retrieves at most six chunks, totaling at
+most 9,600 characters, from that document. Only those chunks and the question
+are sent for answer generation. The original file is never uploaded through an
+OpenAI file API; a short document's entire text may fit inside the retrieved
+excerpts, as disclosed in the consent text. Answers render exact validated quotes
+and page numbers taken from the local index. PDF page numbers are physical pages,
+not printed page labels; text pages are separated by form-feed characters.
+
+Limits: original file 10 MB, PDF at most 300 pages, extracted text at most 1 million
+characters. Encrypted, malformed and scanned PDFs without readable text are
+rejected. Import accepts JSON (`format: text` with UTF-8 text or `format: pdf` with
+base64 bytes). Originals and extracted chunks are stored in SQLite. Treat that
+file and its backups as sensitive. No question history is persisted.
+
+Retrieval errors, provider errors, model refusal and citation failure have
+separate actionable codes; an empty search result never claims the document lacks
+the answer. Generation uses no tools, cannot execute document instructions or
+mutate vessel records, and treats source text as untrusted. Exact quote checks do
+not establish that a paraphrase is correct. Review sources before operational use.
+Do not enable SDK/HTTP debug body logging on sensitive data. `store=False` is sent
+to OpenAI; this does not override the provider's account-level data retention policy.
+
+No live OpenAI call was verified during this task: this environment has no valid
+key and its network allowlist excludes `api.openai.com`. For a live check, configure
+a backend key and allow HTTPS to that host in the environment's supported network
+configuration, then ask against a synthetic document with explicit consent.
+See [assessment](docs/ONLINE_API_ASSESSMENT.md) and
+[implementation and validation report](docs/ONLINE_API_IMPLEMENTATION.md).
 
 ## Testing
 
@@ -118,7 +179,30 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Before E2E, start the backend on port 8000 using a **disposable migrated database**: set `MARITIME_DATA_DIR` to a new temporary directory in that terminal, run `alembic upgrade head`, then `uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000` from `backend`. E2E writes a synthetic profile and edits the first profile; never run it against operational data. Playwright starts Vite automatically. The smoke test covers actual API/database creation, edit, reload and mobile layout. Backend tests separately prove database persistence across application restart. CI runs backend tests, frontend unit tests and production build on Ubuntu and Windows; browser smoke is optional.
+The document Q&A browser case requires the synthetic SDK harness described below; it is explicitly skipped against a normal backend. Before the existing profile E2E cases, start the backend on port 8000 using a **disposable migrated database**: set `MARITIME_DATA_DIR` to a new temporary directory in that terminal, run `alembic upgrade head`, then `uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000` from `backend`. E2E writes a synthetic profile and edits the first profile; never run it against operational data. Playwright starts Vite automatically. The smoke test covers actual API/database creation, edit, reload and mobile layout. Backend tests separately prove database persistence across application restart. CI runs backend tests, frontend unit tests and production build on Ubuntu and Windows; browser smoke is optional.
+
+To run **all three browser cases** without paid API calls, use a new empty
+local directory as `MARITIME_DATA_DIR` and start the test-only backend from
+`backend` (with the virtual environment active):
+
+```sh
+# Set MARITIME_DATA_DIR to a disposable directory, and MARITIME_E2E_SYNTHETIC=1.
+python -m alembic upgrade head
+python -m uvicorn browser_app:create_e2e_app --factory --app-dir tests --host 127.0.0.1 --port 8000
+```
+
+Then from `frontend`, with `MARITIME_E2E_SYNTHETIC=1` also set in that terminal:
+
+```sh
+npm run test:e2e
+```
+
+The harness uses real HTTP, SQLite, FTS5, extraction and citation validation with
+the official SDK backed by an in-memory mock transport. Responses are marked
+**SYNTHETIC SDK RESPONSE**. Never deploy that test factory. Optionally set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an installed Chromium executable instead of
+downloading Playwright's browser. Mobile checks use Chromium device emulation;
+they do not establish physical Android validation.
 
 ## Repository
 
@@ -131,4 +215,4 @@ docs/          Product requirements, architecture, decisions and roadmap
 .github/       GitHub Actions CI
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). This repository intentionally does not include local LLMs or an AI chat implementation.
+See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). This checkout has no Qwen3/llama.cpp runtime. The document provider Protocol allows future local adapters without changing extraction, retrieval or citation validation.
