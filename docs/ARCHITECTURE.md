@@ -91,3 +91,16 @@ Production checks secrets, HTTPS origins, hosts and persistent storage; request
 middleware enforces auth, origin, bounded JSON and HTTPS. Explicit CORS includes
 credentials/Authorization/CSRF without wildcard origins. No deployment is performed.
 See [operations and security trade-offs](CLOUD_DEPLOYMENT.md).
+
+## Task 02B.1 disposable assessment profile
+
+Default production remains persistent and unchanged. Explicit production-only
+flags plus an acknowledgement allow a new isolated temporary root, never a reused
+operational path. Standard migrations and storage/schema/original-file validation
+still run. The UI and logs disclose data/session/rate/quota loss. Only exact bundled
+fictional document bytes/title/format are accepted; vessel writes are denied.
+Inference is forbidden both in the workflow guard and OpenAI adapter, and real
+keys are rejected in this profile. No budget reset can authorize paid calls.
+Provider pricing/eligibility and Pages policy gates are documented, not inferred
+from the successful build. No provider-specific deployment or auth handoff is
+implemented in this assessment.

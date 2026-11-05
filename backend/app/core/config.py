@@ -107,6 +107,18 @@ class Settings:
         )
     )
 
+    disposable_test_mode: bool = field(
+        default_factory=lambda: (
+            os.environ.get("MARITIME_DISPOSABLE_TEST_MODE") == "true"
+        )
+    )
+    disposable_ack: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_DISPOSABLE_ACK", "")
+    )
+    disposable_root: str | None = field(
+        default_factory=lambda: os.environ.get("MARITIME_DISPOSABLE_ROOT")
+    )
+
     def __post_init__(self):
         if self.environment not in {"development", "production"}:
             raise ValueError("MARITIME_ENV must be development or production")
@@ -168,12 +180,22 @@ class Settings:
             from app.services.auth import validate_password_hash
 
             validate_password_hash(self.password_hash)
+        if self.disposable_test_mode:
+            from app.core.disposable import validate_disposable
+
+            validate_disposable(self)
+        elif self.disposable_ack or self.disposable_root:
+            raise ValueError(
+                "Disposable settings require explicit MARITIME_DISPOSABLE_TEST_MODE=true"
+            )
         if self.environment == "production":
             if not self.password_hash or not self.openai_api_key:
                 raise ValueError(
                     "Production requires MARITIME_PASSWORD_HASH and OPENAI_API_KEY"
                 )
-            if not self.storage_persistent or not self.documents_dir:
+            if not self.documents_dir or (
+                not self.storage_persistent and not self.disposable_test_mode
+            ):
                 raise ValueError(
                     "Production requires persistent storage acknowledgement and MARITIME_DOCUMENTS_DIR"
                 )

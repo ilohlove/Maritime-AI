@@ -89,3 +89,20 @@ it("reports and retries library loading failures", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Reload library / configuration" }));
   await waitFor(() => expect(screen.getByLabelText("Selected document")).toHaveValue("synthetic-doc"));
 });
+
+it("restricts disposable UI to the bundled synthetic sample and disables inference", async () => {
+  const synthetic = { title: "SYNTHETIC SAMPLE", format: "text", content: "Fictional test only." };
+  const fetcher = vi.fn((url: string, options?: RequestInit) => {
+    if (url.includes("providers")) return response({ providers: [{ ...config.providers[0], configured: false, status: "disabled_disposable" }], disposable_test_mode: true, synthetic_document: synthetic });
+    if (!options?.method) return response([]);
+    return response({ id: "sample", title: synthetic.title, format: "text" });
+  });
+  vi.stubGlobal("fetch", fetcher); render(<Documents />);
+  const button = await screen.findByRole("button", { name: "Import bundled synthetic document" });
+  expect(screen.getByLabelText("Import document")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Ask document" })).toBeDisabled();
+  await userEvent.click(button);
+  expect(await screen.findByText(/Bundled synthetic document imported/)).toBeInTheDocument();
+  const call = fetcher.mock.calls.find(([url, options]) => url === "/api/documents" && options?.method === "POST");
+  expect(JSON.parse(call?.[1]?.body as string)).toEqual(synthetic);
+});

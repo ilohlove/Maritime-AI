@@ -4,6 +4,16 @@ This branch prepares deployment; it does not deploy, publish Pages, create cloud
 resources or merge another branch. The private MVP has one owner and one backend
 worker/replica. Do not treat it as a multi-user or multi-tenant service.
 
+## Task 02B.1 assessment update
+
+The normal deployment profile below still requires genuine persistent storage.
+A separately acknowledged synthetic-only disposable mode is documented in the
+[free deployment assessment](FREE_CLOUD_DEPLOYMENT_PLAN.md); it forbids real AI
+because losing the quota ledger would reset spending controls. It is not a
+workaround for operational storage. The assessment also identifies Pages password/
+commercial-use guidance requiring review before public rollout. Earlier technical
+build readiness is not policy clearance or evidence that a host is free.
+
 ## Authentication decision
 
 All backend paths require authentication except `GET /api/health`, login and CORS

@@ -92,6 +92,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) or (request.method == "POST" and request.url.path == "/api/auth/login")
             if not public and request.method != "OPTIONS":
                 await run_in_threadpool(auth.authenticate, request)
+            if (
+                settings.disposable_test_mode
+                and request.url.path.startswith("/api/vessels")
+                and request.method in {"POST", "PATCH", "PUT", "DELETE"}
+            ):
+                raise WorkflowError(
+                    "disposable_vessel_write_disabled",
+                    "Vessel writes are disabled in synthetic disposable testing.",
+                    403,
+                )
             if request.method in {"POST", "PATCH", "PUT", "DELETE"}:
                 if (
                     request.headers.get("content-type", "").split(";")[0]

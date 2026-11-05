@@ -47,3 +47,14 @@ cases on dev and production preview passed. Dependency audits found no known
 vulnerabilities. No live OpenAI, public cloud deployment, Windows or physical
 mobile verification is claimed. See [delivery report](CLOUD_READINESS_DELIVERY.md)
 and [deployment/security prerequisites](CLOUD_DEPLOYMENT.md).
+
+## Task 02B.1 — 2026-11-05
+
+117 backend and 25 frontend tests passed; normal/Pages builds passed and five
+Chromium cases passed with mocked inference/UI. A real loopback disposable-launcher
+smoke verified auth, schema/storage checks, exact fixture restrictions, AI denial,
+restart data/session loss and preservation of an unrelated existing path. Official
+source research is recorded with revisions. Render/Koyeb current terms remain
+blocked by the documentation network allowlist; no deployment, paid resource or
+live API call occurred. See [verification](FREE_CLOUD_VERIFICATION.md) and
+[provider plan/limitations](FREE_CLOUD_DEPLOYMENT_PLAN.md).

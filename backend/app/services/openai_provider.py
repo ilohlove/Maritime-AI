@@ -23,6 +23,12 @@ class OpenAIProvider:
     online = True
 
     def __init__(self, settings: Settings, model: str):
+        if settings.disposable_test_mode:
+            raise WorkflowError(
+                "disposable_ai_disabled",
+                "OpenAI is disabled in disposable synthetic testing.",
+                403,
+            )
         if not settings.openai_api_key:
             raise WorkflowError(
                 "provider_not_configured", "Set OPENAI_API_KEY on the backend."

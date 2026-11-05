@@ -66,7 +66,11 @@ def validate_storage(engine, settings, directory):
     for path in (Path(make_url(settings.database_url).database).parent, directory):
         with tempfile.TemporaryFile(dir=path):
             pass
-    if not settings.storage_persistent:
+    if settings.disposable_test_mode:
+        from app.core.disposable import STORAGE_WARNING
+
+        logging.getLogger("maritime.storage").warning(STORAGE_WARNING)
+    elif not settings.storage_persistent:
         logging.getLogger("maritime.storage").warning(
             "STORAGE NOT CONFIRMED PERSISTENT: SQLite and document originals may be lost on host restart/redeployment. Do not use operational data."
         )

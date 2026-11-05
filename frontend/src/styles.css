@@ -476,3 +476,5 @@ footer {
 .auth-shell input { width: 100%; padding: .75rem; font: inherit; }
 .auth-shell [role="alert"] { overflow-wrap: anywhere; }
 .session-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem; padding: .5rem 1rem; }
+
+.storage-warning { margin: 1rem; padding: 1rem; border: 2px solid #b45309; background: #fff7ed; color: #7c2d12; font-weight: 600; overflow-wrap: anywhere; }

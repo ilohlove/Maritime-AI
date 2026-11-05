@@ -36,7 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to confirm logout. Retry."); }
     finally { setBusy(false); }
   }
-  if (session) return <><div className="session-bar"><span>Private workspace · {session.user}</span><button disabled={busy} onClick={() => void logout()}>Log out</button>{error && <p role="alert">{error}</p>}</div>{children}</>;
+  if (session) return <>{session.storage_warning && <aside role="alert" className="storage-warning">{session.storage_warning}</aside>}<div className="session-bar"><span>Private workspace · {session.user}</span><button disabled={busy} onClick={() => void logout()}>Log out</button>{error && <p role="alert">{error}</p>}</div>{children}</>;
   return <main className="auth-shell"><section className="card">
     <h1>Sign in to Maritime AI</h1>
     <p>Private vessel and document workspace. Sign in again after refreshing or closing this page.</p>

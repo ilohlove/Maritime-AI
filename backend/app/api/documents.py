@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from app.core.disposable import SYNTHETIC_DOCUMENT
 from app.schemas.document import DocumentImport, Question
 from app.services import documents
 from app.services.document_ai import WorkflowError
@@ -16,14 +17,21 @@ def create_document_router(sessions, settings):
     @router.get("/ai/providers")
     def providers():
         return {
+            "disposable_test_mode": settings.disposable_test_mode,
+            "synthetic_document": SYNTHETIC_DOCUMENT
+            if settings.disposable_test_mode
+            else None,
             "providers": [
                 {
                     "id": "openai",
                     "online": True,
-                    "configured": bool(settings.openai_api_key),
+                    "configured": bool(settings.openai_api_key)
+                    and not settings.disposable_test_mode,
                     "models": list(settings.openai_models),
                     "default_model": settings.openai_model,
-                    "status": "configured_unverified"
+                    "status": "disabled_disposable"
+                    if settings.disposable_test_mode
+                    else "configured_unverified"
                     if settings.openai_api_key
                     else "missing_api_key",
                 }
@@ -53,6 +61,12 @@ def create_document_router(sessions, settings):
                 "Provide title, format (text/pdf) and valid content within import limits.",
                 422,
             ) from None
+        if settings.disposable_test_mode and payload.model_dump() != SYNTHETIC_DOCUMENT:
+            raise WorkflowError(
+                "synthetic_fixture_required",
+                "Disposable mode accepts only the exact bundled synthetic sample.",
+                422,
+            )
         return await run_in_threadpool(
             documents.import_document,
             sessions,

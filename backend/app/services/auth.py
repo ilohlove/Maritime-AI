@@ -130,7 +130,12 @@ class AuthService:
             raise WorkflowError(
                 "security_unavailable", "Cannot create a session; access denied."
             ) from None
+        from app.core.disposable import STORAGE_WARNING
+
         return {
+            "storage_warning": STORAGE_WARNING
+            if self.settings.disposable_test_mode
+            else None,
             "access_token": token,
             "csrf_token": csrf,
             "expires_at": expires,

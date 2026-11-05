@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
 
 type Document = { id: string; title: string; format: "pdf" | "text" };
+type ImportPayload = { title: string; format: "text"; content: string };
 type Provider = { id: string; online: boolean; configured: boolean; models: string[]; default_model: string; status: string };
 type Answer = {
   status: "answered" | "no_evidence";
@@ -12,6 +13,7 @@ type Answer = {
 };
 
 export function Documents({ assistant = false }: { assistant?: boolean }) {
+  const [synthetic, setSynthetic] = useState<ImportPayload | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [documentId, setDocumentId] = useState("");
@@ -32,8 +34,9 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
     try {
       const [library, configuration] = await Promise.all([
         request<Document[]>("/documents"),
-        request<{ providers: Provider[] }>("/ai/providers"),
+        request<{ providers: Provider[]; synthetic_document?: ImportPayload | null }>("/ai/providers"),
       ]);
+      setSynthetic(configuration.synthetic_document ?? null);
       setDocuments(library);
       setProviders(configuration.providers);
       setDocumentId((current) => library.some((d) => d.id === current) ? current : library[0]?.id ?? "");
@@ -69,6 +72,17 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
     finally { setBusy(false); }
   }
 
+  async function importSynthetic() {
+    if (!synthetic) return;
+    setBusy(true); setError("");
+    try {
+      const imported = await request<Document>("/documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(synthetic) });
+      setDocuments((items) => [imported, ...items]); setDocumentId(imported.id); setConsent(false); setAnswer(null);
+      setNotice("Bundled synthetic document imported into temporary storage.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Synthetic import failed."); }
+    finally { setBusy(false); }
+  }
+
   async function ask(event: FormEvent) {
     event.preventDefault();
     setBusy(true); setError(""); setAnswer(null); setNotice("");
@@ -88,11 +102,12 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
     <h2>{assistant ? "Ask a document" : "Private document library"}</h2>
     <p>Documents are stored on your configured backend. Importing does not send them to an AI provider. Import a text-based PDF or UTF-8 text file (up to 10 MB). Scanned PDFs require OCR.</p>
     <label>Import document
-      <input type="file" accept=".pdf,.txt" disabled={busy || loading} onChange={(e) => {
+      <input type="file" accept=".pdf,.txt" disabled={busy || loading || !!synthetic} onChange={(e) => {
         const file = e.target.files?.[0]; e.target.value = "";
         if (file) void importFile(file);
       }} />
     </label>
+    {synthetic && <button disabled={busy || loading} onClick={() => void importSynthetic()}>Import bundled synthetic document</button>}
     {loading && <p role="status">Loading library and provider configuration…</p>}
     {error && <div role="alert"><p>{error}</p><button disabled={busy} onClick={() => void load()}>Reload library / configuration</button></div>}
     {notice && <p role="status">{notice}</p>}
@@ -117,7 +132,7 @@ export function Documents({ assistant = false }: { assistant?: boolean }) {
           {provider?.models.map((m) => <option key={m}>{m}</option>)}
         </select>
       </label>
-      {provider && <p role="status">{provider.online ? "Online provider" : "Offline provider"}: {provider.configured ? "Configured; connectivity has not been verified" : "API key missing — configure OPENAI_API_KEY on the backend"}. No automatic fallback.</p>}
+      {provider && <p role="status">{provider.online ? "Online provider" : "Offline provider"}: {provider.status === "disabled_disposable" ? "Disabled for disposable testing; no real inference or API charge is allowed" : provider.configured ? "Configured; connectivity has not been verified" : "API key missing — configure OPENAI_API_KEY on the backend"}. No automatic fallback.</p>}
       <label>Question (Vietnamese or English)
         <textarea value={question} maxLength={2000} required disabled={busy} onChange={(e) => { setQuestion(e.target.value); setConsent(false); setAnswer(null); }} />
       </label>

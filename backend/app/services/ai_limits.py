@@ -64,6 +64,12 @@ class AIGuard:
 
     @contextmanager
     def request(self, user: str):
+        if self.settings.disposable_test_mode:
+            raise WorkflowError(
+                "disposable_ai_disabled",
+                "Real inference is forbidden in disposable testing: quota state can reset. Use a durable, separately authorized API test environment.",
+                403,
+            )
         rate_limit(self.engine, "ai:" + user, self.settings.ai_rate_limit)
         if not self.slots.acquire(blocking=False):
             raise WorkflowError(

@@ -74,3 +74,10 @@ it("uses the configured HTTPS backend and never places tokens in the URL", async
   await request("/documents");
   expect((fetcher.mock.calls[0] as unknown as [string, RequestInit])[0]).toBe("https://api.example.invalid/api/documents");
 });
+
+it("shows a persistent disposable-storage warning before private data can be used", () => {
+  setSession({ ...session, storage_warning: "DISPOSABLE SYNTHETIC TEST: data may be lost. Real AI disabled." });
+  render(<AuthGate><p>Private data</p></AuthGate>);
+  expect(screen.getByRole("alert")).toHaveTextContent("data may be lost");
+  expect(screen.getByRole("alert")).toHaveTextContent("Real AI disabled");
+});

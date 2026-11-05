@@ -17,6 +17,29 @@ The cloud runtime is one owner, one worker/replica and mounted persistent storag
 GitHub Pages uses memory-only bearer sessions, avoiding third-party mobile cookies.
 All private UI/data requires sign-in; reloading the page requires sign-in again.
 
+## Free-hosting assessment (Task 02B.1)
+
+See [free testing plan and provider comparison](docs/FREE_CLOUD_DEPLOYMENT_PLAN.md)
+and its [official-source ledger](docs/FREE_CLOUD_SOURCES.md). Current Render/Koyeb
+free-tier terms could not yet be directly verified under this environment's
+network policy; no managed provider is certified as recurring $0. The verified Fly no-card trial
+is recommended only for brief eligible initial testing, with $1/7-day credit and
+five-minute machine stops; no trial was started. A free signup,
+old free template, temporary credit or free hardware inside a paid subscription
+is not enough. No deployment has occurred.
+
+An explicit production-secured disposable profile now exists for synthetic-only
+storage/UI tests: `scripts/start_disposable_test.py`. It accepts only the exact
+bundled document, blocks vessel writes and all real AI, shows a data-loss warning,
+and validates a fresh isolated temporary SQLite/originals directory. It does not
+weaken the normal persistent production profile. Do not put real API keys or
+operational records into it. See the plan before using its inert environment sample.
+
+The assessment also flags official Pages guidance about password transactions and
+commercial SaaS. The existing password form is not cleared for public Pages
+rollout solely because the static build passes. Resolve that gate before any later
+publication; backend-hosted authentication is proposed, not implemented in this task.
+
 ## Install
 
 From the repository root:
