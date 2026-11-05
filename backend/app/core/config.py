@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
@@ -51,6 +52,15 @@ class Settings:
 
     environment: str = field(
         default_factory=lambda: os.environ.get("MARITIME_ENV", "development")
+    )
+    https_transport: str = field(
+        default_factory=lambda: os.environ.get(
+            "MARITIME_HTTPS_TRANSPORT", "trusted-proxy"
+        )
+    )
+    gateway_secret: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_GATEWAY_SECRET", ""),
+        repr=False,
     )
     admin_username: str = field(
         default_factory=lambda: os.environ.get("MARITIME_ADMIN_USERNAME", "admin")
@@ -120,6 +130,23 @@ class Settings:
     )
 
     def __post_init__(self):
+        if self.https_transport not in {"trusted-proxy", "signed-gateway"}:
+            raise ValueError("Invalid MARITIME_HTTPS_TRANSPORT")
+        if self.https_transport == "signed-gateway":
+            if (
+                self.environment != "production"
+                or not self.disposable_test_mode
+                or not re.fullmatch(r"[0-9a-f]{64}", self.gateway_secret)
+                or os.environ.get("MARITIME_TRUSTED_PROXY_IPS", "").strip()
+            ):
+                raise ValueError(
+                    "Signed gateway requires production disposable mode, a 64-character "
+                    "lowercase hex MARITIME_GATEWAY_SECRET and no trusted proxy IPs"
+                )
+        elif self.gateway_secret:
+            raise ValueError(
+                "MARITIME_GATEWAY_SECRET requires signed-gateway transport"
+            )
         if self.environment not in {"development", "production"}:
             raise ValueError("MARITIME_ENV must be development or production")
         if self.auth_transport not in {"bearer", "cookie"}:

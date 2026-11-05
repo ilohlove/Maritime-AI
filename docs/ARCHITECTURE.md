@@ -104,3 +104,13 @@ keys are rejected in this profile. No budget reset can authorize paid calls.
 Provider pricing/eligibility and Pages policy gates are documented, not inferred
 from the successful build. No provider-specific deployment or auth handoff is
 implemented in this assessment.
+## Signed disposable cloud ingress
+
+The optional `signed-gateway` transport places a Cloudflare Worker in front of
+Render Free. The Worker serves the same-origin UI and attests both HTTPS hops
+with an HMAC over each API request. An ASGI gate verifies the proof and consumes
+a nonce in the existing security-window table before supplying the authenticated
+HTTPS scheme to the normal security middleware. Host validation wraps the gate;
+owner authentication and disposable restrictions remain inside it. Uvicorn does
+not interpret forwarded headers in this mode. See
+[the protocol, evidence and exact configuration](SIGNED_CLOUD_GATEWAY.md).

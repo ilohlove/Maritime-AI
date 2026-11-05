@@ -135,6 +135,13 @@ for exact origins, never wildcard origins. `MARITIME_ALLOWED_ORIGINS` should be
 
 ## Backend environment reference
 
+The opt-in [signed gateway profile](SIGNED_CLOUD_GATEWAY.md) uses
+`MARITIME_HTTPS_TRANSPORT=signed-gateway` and the secret
+`MARITIME_GATEWAY_SECRET` (64 lowercase hex characters) in production disposable
+mode only. It rejects any configured proxy allowlist and disables Uvicorn
+forwarded-header trust. The default remains `trusted-proxy`; its existing
+production allowlist requirement and all normal storage/security guards remain.
+
 | Variable | Default / production requirement |
 | --- | --- |
 | `MARITIME_ENV` | `development`; set `production` on a cloud host |

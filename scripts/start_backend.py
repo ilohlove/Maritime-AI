@@ -13,7 +13,10 @@ from app.core.config import Settings
 def main():
     settings = Settings()
     proxies = os.environ.get("MARITIME_TRUSTED_PROXY_IPS", "")
-    if settings.environment == "production" and not proxies:
+    if settings.https_transport == "signed-gateway":
+        # Settings validates the independent gateway credential. No header/IP trust.
+        proxies = ""
+    elif settings.environment == "production" and not proxies:
         raise ValueError(
             "Configure MARITIME_TRUSTED_PROXY_IPS for the actual HTTPS ingress"
         )

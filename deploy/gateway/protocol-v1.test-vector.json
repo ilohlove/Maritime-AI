@@ -1,0 +1,13 @@
+{
+  "secret": "0000000000000000000000000000000000000000000000000000000000000000",
+  "timestamp": "1793923200",
+  "nonce": "11111111111111111111111111111111",
+  "method": "POST",
+  "url": "https://backend.example.onrender.com/api/auth/login?check=one%20two",
+  "headers": {
+    "content-type": "application/json",
+    "origin": "https://maritime.example.workers.dev"
+  },
+  "body": "{\"username\":\"synthetic\",\"password\":\"synthetic-vector-only\"}",
+  "signature": "79a84f58ff8a08665fdd3703b89dccacd6f0b0e68c04719fe45e4a2679cfea20"
+}

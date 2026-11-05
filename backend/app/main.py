@@ -150,7 +150,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
-    # CORS wraps auth failures; outer host validation also guards preflight.
+    # CORS wraps owner-auth failures; host and gateway checks also guard preflight.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
@@ -158,6 +158,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
     )
+    if settings.https_transport == "signed-gateway":
+        from app.core.gateway import SignedGatewayMiddleware
+
+        app.add_middleware(
+            SignedGatewayMiddleware, engine=engine, secret=settings.gateway_secret
+        )
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts)
     )

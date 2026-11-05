@@ -1,5 +1,12 @@
 # Render Free disposable backend: configuration and unresolved ingress gate
 
+**Superseded for the recommended architecture:** use
+[SIGNED_CLOUD_GATEWAY.md](SIGNED_CLOUD_GATEWAY.md) and
+`deploy/render-signed-gateway.env.example`. The signed gateway adds authenticated
+transport proofs and needs no proxy IP allowlist. This document describes only
+the older direct-proxy mode; its unresolved allowlist is no longer a prerequisite
+for the new signed-gateway profile. Neither profile has been deployed here.
+
 Assessment date: 2026-11-06. Based on
 `feature/free-cloud-deployment-assessment` at
 `202240d96a446ce8b64d8a6971bccfbd03ea6c45`.
