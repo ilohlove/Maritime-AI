@@ -17,6 +17,7 @@ from app.services.openai_provider import OpenAIProvider
 from conftest import TEST_HASH, TEST_PASSWORD, migrate
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 
 @pytest.fixture
@@ -78,6 +79,39 @@ def test_normal_production_still_rejects_ephemeral_storage(disposable_settings):
             disposable_ack="",
             disposable_root=None,
         )
+
+
+@pytest.mark.parametrize("trusted_peer", [False, True])
+def test_proxy_scheme_requires_a_trusted_peer(disposable_settings, trusted_peer):
+    app = create_app(disposable_settings)
+    migrate(app)
+    # Reserved TEST-NET addresses simulate peers; these are not Render addresses.
+    proxied = ProxyHeadersMiddleware(app, trusted_hosts="192.0.2.10")
+    peer = "192.0.2.10" if trusted_peer else "192.0.2.11"
+    with TestClient(
+        proxied, base_url="http://api.example.invalid", client=(peer, 12345)
+    ) as client:
+        response = client.get(
+            "/api/health",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-For": "192.0.2.10",
+            },
+        )
+        if not trusted_peer:
+            assert response.status_code == 400
+            assert response.json()["detail"]["code"] == "https_required"
+        else:
+            assert response.status_code == 200
+            assert client.get("/api/health").status_code == 400
+            headers = {"X-Forwarded-Proto": "https"}
+            assert client.get("/api/documents", headers=headers).status_code == 401
+            assert client.get(
+                "/api/health", headers=headers | {"Host": "evil.invalid"}
+            ).status_code == 400
+            assert client.get(
+                "/api/health", headers=headers | {"Origin": "https://evil.invalid"}
+            ).status_code == 403
 
 
 def test_disposable_preserves_auth_tls_cors_and_explicit_warning(

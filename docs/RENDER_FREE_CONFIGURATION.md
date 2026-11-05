@@ -12,6 +12,20 @@ development mode, or disabled authentication/host validation.
 
 ## Verified implementation and official-source evidence
 
+Task 02B.2 update: the operator independently retrieved the official Render
+sources below and supplied these verified facts. They are accepted as evidence
+for this continuation; this environment has not independently re-fetched them.
+
+| Official source | Operator-verified facts |
+| --- | --- |
+| [Web services](https://render.com/docs/web-services) and [web services tutorial](https://render.com/tutorials/web-service-vs-static-site/web-services) | Render terminates inbound HTTPS at its load balancer, forwards HTTP to the app, redirects public HTTP to HTTPS, documents `X-Forwarded-Proto` for the original scheme, and requires `0.0.0.0` plus the supplied `PORT` |
+| [Private network](https://render.com/docs/private-network) and [Free services](https://render.com/docs/free) | Free Web Services can initiate private-network requests but cannot receive inbound private-network traffic |
+
+These sources, as verified by the operator, do not supply verified inbound proxy
+IP ranges or sufficient guarantees about sanitizing client-supplied forwarded
+headers. The remaining blocker is that trust boundary, not inability to retrieve
+the already-verified platform facts.
+
 - `scripts/start_disposable_test.py` requires the production/disposable/data-loss
   flags below, creates a fresh system temporary directory, overrides inherited
   database/document paths, migrates that database, then calls `start_backend.py`.
@@ -34,20 +48,27 @@ development mode, or disabled authentication/host validation.
   The old Blueprint contains `plan: free` and `autoDeploy: false`; it does not
   establish current pricing, header sanitization or proxy topology.
 
-Direct retrieval of `https://render.com/docs/web-services` returned HTTP 403 from
-this environment's network proxy. Searches of Render's public GitHub organization
-and repository search did not locate an official documentation mirror that
-establishes ingress trust. No web-search connector is available in this session.
-The official example is available, but it contains no forwarded-header guarantee.
-The network draft adding `render.com` was saved but not published; the operator
-cannot activate it. No restriction was bypassed.
+**Still unverified:** which forwarded headers Render overwrites versus appends,
+including duplicate headers, and actual immediate ingress peer addresses/ranges.
+Free's inbound private-network restriction reduces possible access paths; it
+does not by itself authenticate a forwarded-header value. A public client can
+send that header through the load balancer unless the ingress sanitizes it.
 
-**Unverified:** where Render currently terminates TLS, which forwarded headers it
-overwrites versus appends, actual immediate ingress peer addresses/ranges, and
-whether any other peers can reach a Free service's listening port. An assumption
-that Render's public TLS ingress safely sets `X-Forwarded-Proto` is insufficient
-to choose an allowlist or introduce platform-specific unconditional header trust.
-Compatibility remains conditional; this assessment does not prove incompatibility.
+**Decision:** a secure configuration without proxy IP ranges has not been
+established from the available evidence. A platform-specific scheme adapter could
+potentially use a documented exclusive ingress boundary with a guaranteed
+canonical scheme header that clients cannot influence. Both the exclusive path
+and sanitization guarantee would need verification before implementing it. A
+`RENDER=true` process variable, a matching Host, the application's password or the
+HTTP-to-HTTPS redirect does not authenticate each forwarded header. Authentication
+also cannot protect the public login endpoint's transport check.
+
+For the existing Uvicorn implementation, an IP allowlist additionally needs the
+trusted ingress to supply safe scheme and client-IP headers: peer identity alone
+does not sanitize malicious input relayed by that peer. No automatic Render mode,
+unconditional HTTPS scheme, wildcard trust or broad private range was added.
+Production remains fail-closed. This does not prove that Render is inherently
+incompatible; it identifies the evidence needed for a secure compatibility fix.
 
 ## Generate the password hash locally
 
@@ -129,6 +150,12 @@ All remaining settings may be omitted, using these validated defaults:
 | `MARITIME_AI_DAILY_TOKEN_BUDGET`, `MARITIME_AI_MAX_INPUT_TOKENS` | `100000`, `20000` |
 | `MARITIME_AI_OUTPUT_TOKENS`, `MARITIME_AI_TRANSLATION_TOKENS` | `2000`, `512` |
 
+The Render-specific [environment template](../deploy/render-free.env.example)
+sets `MARITIME_BIND_HOST=0.0.0.0` and deliberately omits `PORT`, using Render's
+inherited value. The shared launcher's loopback default remains appropriate for
+local use. The template deliberately leaves proxy trust unset and cannot start
+production until the ingress gate is resolved.
+
 Existing tighter AI limits from `deploy/disposable-test.env.example` are valid
 but not required; they do not enable inference. That generic example's loopback
 bind and ingress placeholders are not ready-to-use Render values.
@@ -158,12 +185,12 @@ bind and ingress placeholders are not ready-to-use Render values.
 
 Specific official documentation needed:
 
-- [Web services](https://render.com/docs/web-services): TLS termination and the
+- [Web services](https://render.com/docs/web-services): the
   exact `X-Forwarded-Proto`/`X-Forwarded-For` replacement or append behavior,
   including client-supplied and duplicate values; port exposure and health probes.
-- [Private networking](https://render.com/docs/private-network) and
-  [Free service limitations](https://render.com/docs/free): all peers capable of
-  reaching this Free service, including whether public ingress can be bypassed.
+- The verified inbound private-network restriction is accepted. An alternative
+  without IP ranges still needs a complete exclusive-ingress guarantee, including
+  any internal platform/health-probe paths to this Free service's listening port.
 - Official inbound proxy address/range guarantees or an explicit documented
   alternative trust boundary. Render outbound/egress IP lists and DNS addresses
   of the public service are not evidence of immediate inbound proxy addresses.
@@ -175,7 +202,7 @@ No deployment, live AI request, provider account change or paid resource was mad
 | Check | Result |
 | --- | --- |
 | Exact Render Build Command, using the local virtual environment | Passed, including editable installation |
-| Backend `python -m pytest -q` | 121 passed; one existing Starlette/httpx deprecation warning |
+| Backend `python -m pytest -q` | 130 passed; one existing Starlette/httpx deprecation warning |
 | Frontend `npm test` | 25 passed |
 | Frontend `npm run build` | Passed |
 | Chromium Playwright with isolated synthetic SDK backend | 5 passed, no paid calls |
@@ -187,6 +214,15 @@ No deployment, live AI request, provider account change or paid resource was mad
 The password CLI regressions verify hash output, confirmation mismatch and refusal
 of visible-input fallback on either prompt. The normal persistence tests remain
 passing; disposable startup intentionally has different restart semantics.
+
+Task 02B.2 adds launcher regressions for `0.0.0.0` binding, a platform-supplied
+nondefault `PORT`, rejection of missing/wildcard/zero-prefix/hostname proxy
+settings even when `RENDER=true`, and disabled forwarded-header trust in local
+defaults. Integration tests run the real Uvicorn proxy middleware with the
+production disposable app, proving an untrusted peer cannot forge HTTPS (even
+by claiming a trusted IP in `X-Forwarded-For`), while auth, Host and Origin guards
+remain effective for a simulated trusted peer. No simulated address is asserted
+to belong to Render.
 
 To reproduce the repository checks, use the installed virtual environment and
 run `python -m pytest -q` from `backend`, then `npm test` and `npm run build` from
