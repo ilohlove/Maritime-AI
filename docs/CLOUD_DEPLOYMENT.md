@@ -26,12 +26,18 @@ Generate a salted scrypt hash (`N=16384,r=8,p=5`) using the active backend venv:
 python scripts/hash_password.py
 ```
 
-The password is read without echo; put the resulting **hash** in the backend
+The password is read without echo; the generator stops if hidden input is
+unavailable. Use a local interactive terminal. Put the resulting **hash** in the backend
 secret store as `MARITIME_PASSWORD_HASH`, never in Git or Vite. Hashes are also
 sensitive because they permit offline password guessing. No default production
 password, signup, password reset endpoint, JWT or third-party identity service is
 introduced. Use a unique password-manager-generated password/passphrase. Set `MARITIME_ADMIN_USERNAME` (default `admin`). Password rotation or
 changing the username invalidates existing sessions after backend restart.
+
+The [Render Free configuration assessment](RENDER_FREE_CONFIGURATION.md) lists
+the disposable profile's exact environment requirements and the unresolved
+official ingress/proxy verification gate. Its bind setting is Render-specific;
+the generic proxy allowlist requirement below remains enforced.
 
 Default **bearer** transport suits GitHub Pages plus a different backend site.
 Login returns a random 256-bit opaque token; only its SHA-256 digest, absolute

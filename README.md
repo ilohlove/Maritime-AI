@@ -67,6 +67,10 @@ export MARITIME_PASSWORD_HASH="$(python scripts/hash_password.py)"
 ```
 
 On PowerShell, capture the generator output in `$env:MARITIME_PASSWORD_HASH`.
+Use an interactive terminal: the generator refuses visible-input fallback.
+For Render Free disposable testing, see the [configuration and unresolved ingress
+gate](docs/RENDER_FREE_CONFIGURATION.md), including all environment values and
+the local password-hash procedure. Render deployment readiness remains unverified.
 The app does not auto-load `.env`; never commit passwords or hashes. Set optional
 `MARITIME_ADMIN_USERNAME` (default `admin`). Without a hash, development APIs stay
 locked. Then run from the repository root:
