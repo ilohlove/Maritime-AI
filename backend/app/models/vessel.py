@@ -17,6 +17,7 @@ class Vessel(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid4())
     )
+    owner_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     vessel_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     former_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     imo_number: Mapped[str | None] = mapped_column(String(200), nullable=True)

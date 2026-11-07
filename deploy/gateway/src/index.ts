@@ -3,10 +3,12 @@ interface Env {
   MARITIME_BACKEND_ORIGIN: string;
   MARITIME_PUBLIC_ORIGIN: string;
   MARITIME_GATEWAY_SECRET: string;
+  MARITIME_ONLINE_MVP_MODE?: string;
   ASSETS: { fetch(request: Request): Promise<Response> };
 }
 
-const LIMIT = 65536; // Disposable fixture only; no general document uploads.
+const LIMIT = 65536; // Preserved default for the existing disposable deployment.
+const ONLINE_UPLOAD_LIMIT = 4_100_000; // 3 MB PDF plus bounded JSON/base64 envelope.
 const signedHeaders = ["authorization", "content-type", "origin", "x-csrf-token"];
 const encoder = new TextEncoder();
 const hex = (value: ArrayBuffer) => Array.from(new Uint8Array(value), b => b.toString(16).padStart(2, "0")).join("");
@@ -26,7 +28,7 @@ function error(status: number, code: string): Response {
   });
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array> {
+async function boundedBody(request: Request, limit: number): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let length = 0;
   const reader = request.body?.getReader();
@@ -35,7 +37,7 @@ async function boundedBody(request: Request): Promise<Uint8Array> {
     const { done, value } = await reader.read();
     if (done) break;
     length += value.length;
-    if (length > LIMIT) {
+    if (length > limit) {
       await reader.cancel();
       throw new RangeError("Body limit");
     }
@@ -88,7 +90,11 @@ export async function handleRequest(request: Request, env: Env, upstream: typeof
     if (!["GET", "HEAD", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"].includes(request.method)) {
       return error(405, "method_not_permitted");
     }
-    const body = await boundedBody(request);
+    if (env.MARITIME_ONLINE_MVP_MODE !== undefined && !["true", "false"].includes(env.MARITIME_ONLINE_MVP_MODE)) {
+      return error(503, "gateway_not_configured");
+    }
+    const limit = env.MARITIME_ONLINE_MVP_MODE === "true" && incoming.pathname === "/api/documents" && request.method === "POST" ? ONLINE_UPLOAD_LIMIT : LIMIT;
+    const body = await boundedBody(request, limit);
     // Set URL components separately: a path beginning // cannot change origin.
     const target = new URL(backend);
     target.pathname = incoming.pathname;

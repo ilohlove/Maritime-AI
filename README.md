@@ -274,3 +274,25 @@ docs/          Product requirements, architecture, decisions and roadmap
 See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). This checkout has no Qwen3/llama.cpp runtime. The document provider Protocol allows future local adapters without changing extraction, retrieval or citation validation.
 
 Cloudflare deployment trigger - 2026-11-07
+
+## Online MVP V1 — separate persistent configuration
+
+`feature/online-mvp-v1` adds an explicit online mode with PostgreSQL, private
+S3-compatible originals, bounded real PDF processing, owner-scoped Ship Profiles,
+local document search/evidence inspection and optional quota-controlled OpenAI.
+Paid inference defaults off. The existing disposable deployment configuration
+remains unchanged; this branch has not been deployed.
+
+Start with [architecture and repository audit](docs/ONLINE_MVP_V1_ARCHITECTURE.md),
+[deployment/rollback](docs/ONLINE_MVP_V1_DEPLOYMENT.md),
+[security](docs/ONLINE_MVP_V1_SECURITY.md),
+[executed tests](docs/ONLINE_MVP_V1_TEST_REPORT.md), and
+[cost assumptions](docs/ONLINE_MVP_V1_COST_ASSESSMENT.md).
+Use [the new backend example](deploy/online-mvp.env.example) only for a separately
+authorized service. Do not overwrite existing Render/Worker settings.
+
+Run the normal backend checks from `backend` with `python -m pytest -q`.
+For local PostgreSQL integration with Docker and OpenSSL, run
+`python scripts/test_postgres.py -q` from the repository root. That helper creates
+a temporary PostgreSQL 17 container and test CA, runs the full backend suite over
+verified TLS, and removes the container. It never uses a cloud database.

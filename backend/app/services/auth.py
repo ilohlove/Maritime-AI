@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.services.document_ai import WorkflowError
+from app.db.session import security_transaction
 
 
 def digest(value: str) -> str:
@@ -50,11 +51,10 @@ def verify_password(password: str, encoded: str) -> bool:
 def rate_limit(engine, key: str, limit: int, seconds: int = 60) -> None:
     window = int(time.time()) // seconds
     try:
-        with engine.connect() as connection:
-            connection.exec_driver_sql("BEGIN IMMEDIATE")
+        with security_transaction(engine) as connection:
             connection.execute(
                 text(
-                    "INSERT INTO rate_windows(key,window,count) VALUES (:key,:window,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN window=:window THEN count+1 ELSE 1 END,window=:window"
+                    'INSERT INTO rate_windows(key,"window",count) VALUES (:key,:window,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_windows."window"=:window THEN rate_windows.count+1 ELSE 1 END,"window"=:window'
                 ),
                 {"key": key, "window": window},
             )
@@ -62,7 +62,7 @@ def rate_limit(engine, key: str, limit: int, seconds: int = 60) -> None:
                 text("SELECT count FROM rate_windows WHERE key=:key"), {"key": key}
             ).scalar_one()
             connection.execute(
-                text("DELETE FROM rate_windows WHERE window < :old"),
+                text('DELETE FROM rate_windows WHERE "window" < :old'),
                 {"old": window - 2},
             )
             connection.commit()

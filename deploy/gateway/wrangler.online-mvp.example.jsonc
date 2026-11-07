@@ -1,0 +1,21 @@
+{
+  // Review/copy to a separate config. This is not the existing live Worker name.
+  "name": "maritime-ai-online-mvp-review",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../../frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "MARITIME_BACKEND_ORIGIN": "https://REPLACE_NEW_BACKEND.onrender.com",
+    "MARITIME_PUBLIC_ORIGIN": "https://REPLACE_NEW_WORKER.workers.dev",
+    "MARITIME_ONLINE_MVP_MODE": "true"
+  }
+  // Set a NEW MARITIME_GATEWAY_SECRET as a Worker secret, matching only the new backend.
+  // No OpenAI, database, storage or administrator credentials belong in this Worker.
+}

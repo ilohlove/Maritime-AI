@@ -11,6 +11,13 @@ class Document(Base):
     format: Mapped[str] = mapped_column(String(10))
     original: Mapped[bytes] = mapped_column(LargeBinary)
     original_path: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    owner_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    state: Mapped[str] = mapped_column(
+        String(16), default="ready", server_default="ready"
+    )
+    byte_size: Mapped[int | None] = mapped_column(nullable=True)
+    page_count: Mapped[int | None] = mapped_column(nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40))
 
 

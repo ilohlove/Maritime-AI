@@ -29,12 +29,19 @@ class OpenAIProvider:
                 "OpenAI is disabled in disposable synthetic testing.",
                 403,
             )
+        if settings.online_mvp_mode and not settings.ai_enabled:
+            raise WorkflowError(
+                "paid_inference_disabled",
+                "Online inference is disabled by the backend administrator.",
+                403,
+            )
         if not settings.openai_api_key:
             raise WorkflowError(
                 "provider_not_configured", "Set OPENAI_API_KEY on the backend."
             )
         if model not in settings.openai_models:
             raise WorkflowError("invalid_model", "Select a configured model.", 422)
+        self.usage_recorder = None
         self.settings = settings
         self.model = model
         self.client = OpenAI(
@@ -42,6 +49,9 @@ class OpenAIProvider:
             timeout=settings.openai_timeout,
             max_retries=settings.openai_max_retries,
         )
+
+    def set_usage_recorder(self, recorder):
+        self.usage_recorder = recorder
 
     def close(self) -> None:
         self.client.close()
@@ -79,6 +89,22 @@ class OpenAIProvider:
                 ),
                 store=False,
             )
+            if self.usage_recorder is not None:
+                usage = completion.usage
+                if usage is None and self.settings.online_mvp_mode:
+                    raise WorkflowError(
+                        "usage_invalid",
+                        "Provider omitted usage accounting; answer withheld.",
+                        502,
+                    )
+                if usage is not None:
+                    self.usage_recorder(
+                        self.model,
+                        {
+                            "input_tokens": usage.prompt_tokens,
+                            "output_tokens": usage.completion_tokens,
+                        },
+                    )
             choice = completion.choices[0]
             if choice.message.refusal:
                 raise WorkflowError(
@@ -143,7 +169,9 @@ class OpenAIProvider:
             "For every claim provide an excerpt_id and an EXACT contiguous quote from that excerpt. "
             "Use plain text claims without quotations, page numbers or document references; "
             "the application renders sources. Do not infer missing facts. If evidence cannot "
-            "support an answer return status declined and empty claims.",
+            "support an answer return status declined and empty claims. "
+            "If passages conflict, describe each conflicting position with its own exact citation; "
+            "do not select an authoritative position or silently reconcile the conflict.",
             {
                 "question": question,
                 "evidence": [{"excerpt_id": e.id, "text": e.text} for e in excerpts],
