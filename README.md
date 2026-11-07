@@ -272,3 +272,5 @@ docs/          Product requirements, architecture, decisions and roadmap
 ```
 
 See [Architecture](docs/ARCHITECTURE.md), [Requirements](docs/PRODUCT_REQUIREMENTS.md), [Decisions](docs/DECISIONS.md), [Roadmap](docs/ROADMAP.md) and [Validation](docs/VALIDATION.md). This checkout has no Qwen3/llama.cpp runtime. The document provider Protocol allows future local adapters without changing extraction, retrieval or citation validation.
+
+Cloudflare deployment trigger - 2026-11-07
