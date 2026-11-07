@@ -5,7 +5,18 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+def env_flag(name: str) -> bool:
+    value = os.environ.get(name, "false")
+    if value not in {"true", "false"}:
+        raise ValueError(f"{name} must be true or false")
+    return value == "true"
+
+
 def default_database_url() -> str:
+    if os.environ.get("MARITIME_ONLINE_MVP_MODE") == "true":
+        raise ValueError(
+            "Online MVP requires MARITIME_DATABASE_URL; no SQLite fallback"
+        )
     directory = Path(os.environ.get("MARITIME_DATA_DIR", Path.home() / ".maritime-ai"))
     directory.mkdir(parents=True, exist_ok=True)
     return f"sqlite:///{(directory / 'maritime.db').as_posix()}"
@@ -14,9 +25,10 @@ def default_database_url() -> str:
 @dataclass(frozen=True)
 class Settings:
     database_url: str = field(
+        repr=False,
         default_factory=lambda: (
             os.environ.get("MARITIME_DATABASE_URL") or default_database_url()
-        )
+        ),
     )
     allowed_origins: tuple[str, ...] = field(
         default_factory=lambda: tuple(
@@ -129,18 +141,145 @@ class Settings:
         default_factory=lambda: os.environ.get("MARITIME_DISPOSABLE_ROOT")
     )
 
+    online_mvp_mode: bool = field(
+        default_factory=lambda: env_flag("MARITIME_ONLINE_MVP_MODE")
+    )
+    storage_backend: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_STORAGE_BACKEND", "local")
+    )
+    s3_endpoint: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_S3_ENDPOINT", "")
+    )
+    s3_region: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_S3_REGION", "")
+    )
+    s3_bucket: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_S3_BUCKET", "")
+    )
+    s3_access_key: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_S3_ACCESS_KEY", ""), repr=False
+    )
+    s3_secret_key: str = field(
+        default_factory=lambda: os.environ.get("MARITIME_S3_SECRET_KEY", ""), repr=False
+    )
+    s3_private_bucket: bool = field(
+        default_factory=lambda: env_flag("MARITIME_S3_PRIVATE_BUCKET")
+    )
+    ai_enabled: bool = field(default_factory=lambda: env_flag("MARITIME_AI_ENABLED"))
+    ai_input_usd_per_million: str = field(
+        default_factory=lambda: os.environ.get(
+            "MARITIME_AI_INPUT_USD_PER_MILLION", "0.40"
+        )
+    )
+    ai_output_usd_per_million: str = field(
+        default_factory=lambda: os.environ.get(
+            "MARITIME_AI_OUTPUT_USD_PER_MILLION", "1.60"
+        )
+    )
+    upload_rate_limit: int = field(
+        default_factory=lambda: int(os.environ.get("MARITIME_UPLOAD_RATE_LIMIT", "3"))
+    )
+    max_documents: int = field(
+        default_factory=lambda: int(os.environ.get("MARITIME_MAX_DOCUMENTS", "20"))
+    )
+
+    @property
+    def mode(self):
+        return (
+            "online-mvp"
+            if self.online_mvp_mode
+            else "disposable-synthetic"
+            if self.disposable_test_mode
+            else "offline-local"
+        )
+
+    @property
+    def upload_bytes(self):
+        return 3_000_000 if self.online_mvp_mode else 10_000_000
+
+    @property
+    def upload_request_bytes(self):
+        return 4_100_000 if self.online_mvp_mode else 14_100_000
+
     def __post_init__(self):
+        from decimal import Decimal, InvalidOperation
+
+        for price in (self.ai_input_usd_per_million, self.ai_output_usd_per_million):
+            try:
+                value = Decimal(price)
+                if not value.is_finite() or not 0 < value <= 1000:
+                    raise ValueError("Invalid model price")
+            except (InvalidOperation, ValueError):
+                raise ValueError(
+                    "Model token prices must be positive finite USD per million"
+                ) from None
+        if not 1 <= self.upload_rate_limit <= 20 or not 1 <= self.max_documents <= 20:
+            raise ValueError("Invalid upload rate or document count limit")
+        if self.storage_backend not in {"local", "s3"}:
+            raise ValueError("MARITIME_STORAGE_BACKEND must be local or s3")
+        if self.storage_backend == "s3":
+            endpoint = urlparse(self.s3_endpoint)
+            if (
+                endpoint.scheme != "https"
+                or not endpoint.hostname
+                or endpoint.username
+                or endpoint.password
+                or endpoint.query
+                or endpoint.fragment
+                or not self.s3_region
+                or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.s3_bucket)
+                or not self.s3_access_key
+                or not self.s3_secret_key
+                or not self.s3_private_bucket
+            ):
+                raise ValueError(
+                    "S3 requires an HTTPS endpoint, region, bucket, credentials and private bucket acknowledgement"
+                )
+        if self.online_mvp_mode:
+            from sqlalchemy.engine import make_url
+            from app.db.session import database_url
+
+            db = make_url(database_url(self.database_url))
+            if (
+                self.disposable_test_mode
+                or self.environment != "production"
+                or self.https_transport != "signed-gateway"
+                or self.auth_transport != "bearer"
+                or db.get_backend_name() != "postgresql"
+                or not db.host
+                or not db.database
+                or db.query.get("sslmode") != "verify-full"
+                or self.storage_backend != "s3"
+                or not self.storage_persistent
+            ):
+                raise ValueError(
+                    "Online MVP requires production, signed-gateway, bearer auth, verify-full TLS PostgreSQL and persistent private S3; no ephemeral fallback"
+                )
+            if len(self.openai_models) != 1:
+                raise ValueError(
+                    "Online MVP requires one model with explicitly configured token pricing"
+                )
+            if self.ai_enabled and (
+                not self.openai_api_key
+                or self.openai_api_key == "DISABLED-DISPOSABLE-TEST"
+            ):
+                raise ValueError(
+                    "Enabled online inference requires a backend OpenAI key"
+                )
+        elif self.storage_backend != "local":
+            raise ValueError("S3 storage requires explicit online MVP mode")
+
         if self.https_transport not in {"trusted-proxy", "signed-gateway"}:
             raise ValueError("Invalid MARITIME_HTTPS_TRANSPORT")
         if self.https_transport == "signed-gateway":
             if (
                 self.environment != "production"
-                or not self.disposable_test_mode
+                or not (self.disposable_test_mode or self.online_mvp_mode)
                 or not re.fullmatch(r"[0-9a-f]{64}", self.gateway_secret)
                 or os.environ.get("MARITIME_TRUSTED_PROXY_IPS", "").strip()
             ):
                 raise ValueError(
-                    "Signed gateway requires production disposable mode, a 64-character "
+                    "Signed gateway requires production disposable or online mode, a 64-character "
                     "lowercase hex MARITIME_GATEWAY_SECRET and no trusted proxy IPs"
                 )
         elif self.gateway_secret:
@@ -216,12 +355,15 @@ class Settings:
                 "Disposable settings require explicit MARITIME_DISPOSABLE_TEST_MODE=true"
             )
         if self.environment == "production":
-            if not self.password_hash or not self.openai_api_key:
+            if not self.password_hash or (
+                not self.online_mvp_mode and not self.openai_api_key
+            ):
                 raise ValueError(
                     "Production requires MARITIME_PASSWORD_HASH and OPENAI_API_KEY"
                 )
-            if not self.documents_dir or (
-                not self.storage_persistent and not self.disposable_test_mode
+            if not self.online_mvp_mode and (
+                not self.documents_dir
+                or (not self.storage_persistent and not self.disposable_test_mode)
             ):
                 raise ValueError(
                     "Production requires persistent storage acknowledgement and MARITIME_DOCUMENTS_DIR"

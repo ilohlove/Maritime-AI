@@ -106,3 +106,61 @@ it("restricts disposable UI to the bundled synthetic sample and disables inferen
   const call = fetcher.mock.calls.find(([url, options]) => url === "/api/documents" && options?.method === "POST");
   expect(JSON.parse(call?.[1]?.body as string)).toEqual(synthetic);
 });
+
+it("shows online persistence and enforces the backend's conservative upload size", async () => {
+  const fetcher = vi.fn((url: string) => response(url.includes("providers") ? { ...config, mode: "online-mvp", upload_max_bytes: 3_000_000 } : library));
+  vi.stubGlobal("fetch", fetcher); render(<Documents />);
+  expect(await screen.findByText(/Online MVP · persistent storage/)).toBeInTheDocument();
+  expect(screen.getByText(/3 MB, 50 pages/)).toBeInTheDocument();
+  const file = new File([new Uint8Array(3_000_001)], "large.pdf", { type: "application/pdf" });
+  await userEvent.upload(screen.getByLabelText("Import document"), file);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Use a file of at most 3 MB.");
+  expect(fetcher.mock.calls.some(([url]) => url.includes("questions"))).toBe(false);
+});
+
+it("deletes a selected document and clears its answer", async () => {
+  const fetcher = setup();
+  await screen.findByText(/Configured; connectivity/);
+  await userEvent.click(screen.getByRole("button", { name: "Delete selected document" }));
+  expect(await screen.findByText("Document and its search index deleted.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Selected document")).toHaveValue("");
+  const deleted = fetcher.mock.calls.find(([url, options]) => url === "/api/documents/synthetic-doc" && options?.method === "DELETE");
+  expect(deleted).toBeDefined();
+});
+
+it("inspects the full source excerpt separately from AI interpretation", async () => {
+  const fetcher = setup();
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation((url, options) => url.endsWith("/excerpts/4") ? response({ title: "Synthetic manual", page: 3, text: "Full synthetic source passage. Inspect weekly." }) : original(url, options));
+  const user = userEvent.setup(); await screen.findByText(/Configured; connectivity/);
+  await user.type(screen.getByLabelText("Question (Vietnamese or English)"), "frequency?");
+  await user.click(screen.getByRole("checkbox")); await user.click(screen.getByRole("button", { name: "Ask document" }));
+  await user.click(await screen.findByRole("button", { name: "Inspect source excerpt 4" }));
+  expect(await screen.findByLabelText("Source evidence")).toHaveTextContent("Full synthetic source passage");
+  expect(screen.getByText("AI interpretation:")).toBeInTheDocument();
+});
+
+it("keeps online paid inference disabled even when a key might be configured", async () => {
+  vi.stubGlobal("fetch", vi.fn((url: string) => response(url.includes("providers") ? { ...config, mode: "online-mvp", providers: [{ ...config.providers[0], status: "disabled_online", configured: false }] } : library)));
+  render(<Documents />);
+  expect(await screen.findByText(/Disabled by administrator; paid inference is off/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Ask document" })).toBeDisabled();
+});
+
+it("displays durable token reservations and configured cost estimates", async () => {
+  vi.stubGlobal("fetch", vi.fn((url: string) => response(url.includes("providers") ? { ...config, mode: "online-mvp" } : url.endsWith("/usage") ? { reserved_tokens: 42512, daily_token_budget: 100000, estimated_recorded_cost_usd: "0.0012", reserved_cost_upper_bound_usd: "0.0680192" } : library)));
+  render(<Documents />);
+  await userEvent.click(await screen.findByRole("button", { name: "View today's AI usage" }));
+  expect(await screen.findByText(/Reserved tokens: 42512 \/ 100000/)).toHaveTextContent("$0.0012");
+});
+
+it("searches and inspects document passages without consent or paid inference", async () => {
+  const fetcher = vi.fn((url: string) => response(url.includes("providers") ? { ...config, providers: [{ ...config.providers[0], configured: false }] } : url.includes("/search?") ? [{ excerpt_id: 7, page: 2, text: "Synthetic local evidence." }] : library));
+  vi.stubGlobal("fetch", fetcher); render(<Documents />);
+  await screen.findByText(/API key missing/);
+  await userEvent.type(screen.getByLabelText("Search document without AI"), "lifeboat");
+  await userEvent.click(screen.getByRole("button", { name: "Search selected document" }));
+  expect(await screen.findByLabelText("Local search evidence")).toHaveTextContent("Synthetic local evidence.");
+  expect(screen.getByRole("checkbox")).not.toBeChecked();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/questions"))).toBe(false);
+});

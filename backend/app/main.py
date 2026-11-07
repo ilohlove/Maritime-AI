@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from threading import BoundedSemaphore
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,6 +13,7 @@ from app.api.auth import create_auth_router
 from app.api.documents import create_document_router
 from app.api.vessels import create_vessel_router
 from app.core.config import Settings
+from app.core.object_storage import create_storage
 from app.core.storage import document_directory, validate_storage
 from app.db.session import create_database
 from app.services.ai_limits import AIGuard
@@ -23,19 +25,29 @@ from app.services.openai_provider import OpenAIProvider
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     if settings.environment == "production":
-        for name in ("openai", "httpx", "httpcore", "sqlalchemy.engine"):
+        for name in (
+            "openai",
+            "httpx",
+            "httpcore",
+            "sqlalchemy.engine",
+            "boto3",
+            "botocore",
+            "s3transfer",
+            "psycopg",
+        ):
             logging.getLogger(name).setLevel(logging.WARNING)
         # Parser diagnostics can contain untrusted document fragments.
         logging.getLogger("pypdf").setLevel(logging.CRITICAL)
     engine, sessions = create_database(settings.database_url)
 
     directory = document_directory(settings)
+    storage = create_storage(settings, directory)
     auth = AuthService(engine, settings)
 
     @asynccontextmanager
     async def lifespan(app):
         try:
-            validate_storage(engine, settings, directory)
+            validate_storage(engine, settings, directory, storage)
             yield
         finally:
             engine.dispose()
@@ -49,7 +61,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.state.engine = engine
+    app.state.sessions = sessions
     app.state.document_directory = directory
+    app.state.storage = storage
+    app.state.upload_slot = BoundedSemaphore(1)
+    app.state.settings = settings
     app.state.ai_guard = AIGuard(engine, settings)
     app.state.auth = auth
     app.state.document_providers = {
@@ -109,7 +125,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ):
                     raise WorkflowError("json_required", "Use application/json", 415)
                 limit = (
-                    14_100_000
+                    settings.upload_request_bytes
                     if request.url.path == "/api/documents"
                     else (4096 if request.url.path == "/api/auth/login" else 65536)
                 )
@@ -155,14 +171,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
     )
     if settings.https_transport == "signed-gateway":
         from app.core.gateway import SignedGatewayMiddleware
 
         app.add_middleware(
-            SignedGatewayMiddleware, engine=engine, secret=settings.gateway_secret
+            SignedGatewayMiddleware,
+            engine=engine,
+            secret=settings.gateway_secret,
+            upload_limit=settings.upload_request_bytes
+            if settings.online_mvp_mode
+            else 65536,
         )
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts)
@@ -177,6 +198,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(create_auth_router(auth, settings))
-    app.include_router(create_vessel_router(sessions))
+    app.include_router(create_vessel_router(sessions, settings))
     app.include_router(create_document_router(sessions, settings))
     return app

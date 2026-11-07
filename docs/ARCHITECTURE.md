@@ -114,3 +114,13 @@ HTTPS scheme to the normal security middleware. Host validation wraps the gate;
 owner authentication and disposable restrictions remain inside it. Uvicorn does
 not interpret forwarded headers in this mode. See
 [the protocol, evidence and exact configuration](SIGNED_CLOUD_GATEWAY.md).
+
+## Online MVP V1 extension
+
+The separately configured online profile adds PostgreSQL/psycopg, private S3
+originals, owner scope, recoverable document lifecycle, database RLS, bounded PDF
+subprocesses and default-off inference with actual usage reporting. Existing
+SQLite/offline and disposable workflows remain supported. The current source of
+truth for this extension and its limits is
+[ONLINE_MVP_V1_ARCHITECTURE.md](ONLINE_MVP_V1_ARCHITECTURE.md); older sections above
+describe their original release scope.

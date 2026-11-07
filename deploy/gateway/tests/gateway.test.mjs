@@ -86,3 +86,25 @@ test('requires platform TLS connection metadata; URL/proxy header claims are ins
     assert.equal((await result.json()).detail.code, 'verified_tls_required');
   }
 });
+
+test('online uploads have a separate bounded opt-in; other routes retain 64 KiB', async () => {
+  const online = { ...env, MARITIME_ONLINE_MVP_MODE: 'true' };
+  let forwarded = false;
+  const upload = edgeRequest(env.MARITIME_PUBLIC_ORIGIN + '/api/documents', { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'x'.repeat(100_000) });
+  const response = await handleRequest(upload, online, async (url, options) => {
+    forwarded = true;
+    assert.equal(options.body.length, 100_000);
+    assert.equal(options.headers.get('x-maritime-gateway-signature'), await signRequest(env.MARITIME_GATEWAY_SECRET,
+      new URL(url), options.method, options.headers, options.body,
+      options.headers.get('x-maritime-gateway-time'), options.headers.get('x-maritime-gateway-nonce')));
+    return Response.json({ status: 'synthetic' });
+  });
+  assert.equal(response.status, 200);
+  assert.equal(forwarded, true);
+  for (const [path, size] of [['/api/documents', 4_100_001], ['/api/vessels', 65537]]) {
+    const request = edgeRequest(env.MARITIME_PUBLIC_ORIGIN + path, { method: 'POST', body: 'x'.repeat(size) });
+    assert.equal((await handleRequest(request, online, async () => { throw Error('Must not fetch'); })).status, 413);
+  }
+  const invalid = await handleRequest(edgeRequest(env.MARITIME_PUBLIC_ORIGIN + '/api/health'), { ...env, MARITIME_ONLINE_MVP_MODE: 'typo' });
+  assert.equal(invalid.status, 503);
+});

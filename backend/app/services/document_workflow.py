@@ -12,6 +12,9 @@ def answer_question(
     payload: Question,
     registration: ProviderRegistration | None,
     inference_guard,
+    owner=None,
+    allow_legacy=False,
+    usage_recorder=None,
 ):
     if registration is None:
         raise WorkflowError(
@@ -23,14 +26,22 @@ def answer_question(
             "Explicit consent is required to send the question and retrieved excerpts to the online provider.",
             403,
         )
-    document = documents.get_document(sessions, document_id)
+    document = documents.get_document(sessions, document_id, owner, allow_legacy)
     with inference_guard():
-        return _infer(sessions, document_id, payload, registration, document)
+        return _infer(
+            sessions, document_id, payload, registration, document, usage_recorder
+        )
 
 
-def _infer(sessions, document_id, payload, registration, document):
+def _infer(sessions, document_id, payload, registration, document, usage_recorder):
     provider = registration.create(payload.model)
     try:
+        if (
+            usage_recorder is not None
+            and registration.online
+            and hasattr(provider, "set_usage_recorder")
+        ):
+            provider.set_usage_recorder(usage_recorder)
         queries = provider.query_terms(payload.question)
         excerpts = documents.retrieve(
             sessions,

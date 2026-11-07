@@ -45,3 +45,20 @@ def client(configured_app):
     with TestClient(configured_app[0]) as client:
         sign_in(client)
         yield client
+
+
+@pytest.fixture(autouse=True)
+def forbid_real_openai_requests(monkeypatch):
+    """A regression must never turn the automated suite into paid inference."""
+    import httpx
+
+    original = httpx.HTTPTransport.handle_request
+
+    def guarded(transport, request):
+        if request.url.host == "api.openai.com":
+            raise AssertionError(
+                "Real OpenAI network requests are forbidden in tests; use MockTransport"
+            )
+        return original(transport, request)
+
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", guarded)

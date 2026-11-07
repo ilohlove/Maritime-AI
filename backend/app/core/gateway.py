@@ -2,7 +2,7 @@
 
 The gateway signs only after receiving HTTPS and uses HTTPS to this origin.
 The shared credential attests transport, not the user's identity. Owner login
-and all existing authorization remain mandatory. v1 is disposable-test-only.
+and all existing authorization remain mandatory. v1 supports explicitly configured disposable and online modes.
 """
 
 import hashlib
@@ -48,13 +48,13 @@ def consume_nonce(engine, nonce, now):
     with engine.begin() as connection:
         connection.execute(
             text(
-                "DELETE FROM rate_windows WHERE key LIKE 'gateway:%' AND window < :old"
+                "DELETE FROM rate_windows WHERE key LIKE 'gateway:%' AND \"window\" < :old"
             ),
             {"old": int(now) // 60 - 2},
         )
         result = connection.execute(
             text(
-                "INSERT OR IGNORE INTO rate_windows(key,window,count) VALUES (:key,:window,1)"
+                'INSERT INTO rate_windows(key,"window",count) VALUES (:key,:window,1) ON CONFLICT DO NOTHING'
             ),
             # The existing auth-window cleanup must retain this beyond TTL + skew.
             {"key": "gateway:" + nonce, "window": int(now) // 60 + 1},
@@ -63,8 +63,9 @@ def consume_nonce(engine, nonce, now):
 
 
 class SignedGatewayMiddleware:
-    def __init__(self, app, engine, secret):
+    def __init__(self, app, engine, secret, upload_limit=MAX_BODY):
         self.app, self.engine, self.key = app, engine, bytes.fromhex(secret)
+        self.upload_limit = upload_limit
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
@@ -97,7 +98,12 @@ class SignedGatewayMiddleware:
                 if message["type"] == "http.disconnect":
                     return
                 part = message.get("body", b"")
-                if len(body) + len(part) > MAX_BODY:
+                limit = (
+                    self.upload_limit
+                    if scope["method"] == "POST" and scope["path"] == "/api/documents"
+                    else MAX_BODY
+                )
+                if len(body) + len(part) > limit:
                     raise ValueError("Gateway body too large")
                 body.extend(part)
                 if not message.get("more_body", False):
