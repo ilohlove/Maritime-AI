@@ -4,16 +4,19 @@
   "compatibility_date": "2026-11-06",
   "workers_dev": true,
   "preview_urls": false,
+
   "assets": {
     "directory": "../../frontend/dist",
     "binding": "ASSETS",
     "run_worker_first": true,
     "not_found_handling": "single-page-application"
   },
+
   "vars": {
-    "MARITIME_BACKEND_ORIGIN": "https://REPLACE-WITH-ACTUAL.onrender.com",
-    "MARITIME_PUBLIC_ORIGIN": "https://maritime-ai-gateway.REPLACE-WITH-ACCOUNT.workers.dev"
+    "MARITIME_BACKEND_ORIGIN": "https://maritime-ai-a4ah.onrender.com",
+    "MARITIME_PUBLIC_ORIGIN": "https://maritime-ai-gateway.locvipvip.workers.dev"
   }
-  // MARITIME_GATEWAY_SECRET is a secret binding. Never put its value here.
-  // No deployment workflow, paid bindings or database services are configured.
+
+  // MARITIME_GATEWAY_SECRET must be configured as a Cloudflare Secret.
+  // Never store passwords or secrets in this file.
 }
