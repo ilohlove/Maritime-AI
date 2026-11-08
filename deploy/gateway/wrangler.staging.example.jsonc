@@ -1,0 +1,22 @@
+// Staging-only template. Copy to a separate local config after the NEW Render
+// staging hostname and Cloudflare workers.dev subdomain are known.
+// Do not deploy this template as-is. Do not change wrangler.jsonc (demo).
+{
+  "name": "maritime-ai-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../../frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "MARITIME_BACKEND_ORIGIN": "https://REPLACE-STAGING-BACKEND.onrender.com",
+    "MARITIME_PUBLIC_ORIGIN": "https://maritime-ai-staging.REPLACE-ACCOUNT.workers.dev",
+    "MARITIME_ONLINE_MVP_MODE": "true"
+  }
+  // Configure MARITIME_GATEWAY_SECRET as a Worker Secret, never in vars.
+}
