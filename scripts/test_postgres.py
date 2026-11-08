@@ -22,6 +22,14 @@ def run(*args, **kwargs):
 
 
 def main():
+    for selector in (
+        "DOCKER_HOST",
+        "DOCKER_CONTEXT",
+        "DOCKER_TLS",
+        "DOCKER_TLS_VERIFY",
+        "DOCKER_CERT_PATH",
+    ):
+        os.environ.pop(selector, None)
     container = "maritime-mvp-tests-" + secrets.token_hex(6)
     password = secrets.token_urlsafe(24)
     try:
@@ -63,6 +71,8 @@ def main():
                 "1",
                 "-subj",
                 "/CN=localhost",
+                "-addext",
+                "subjectAltName=DNS:localhost",
                 "-keyout",
                 str(key),
                 "-out",
@@ -100,7 +110,14 @@ def main():
                     sys.executable,
                     "-m",
                     "pytest",
-                    *(sys.argv[1:] or ["-q", "tests/test_online_mvp.py"]),
+                    *(
+                        sys.argv[1:]
+                        or [
+                            "-q",
+                            "tests/test_online_mvp.py",
+                            "tests/test_supabase_staging.py",
+                        ]
+                    ),
                 ],
                 cwd=ROOT / "backend",
                 env=environment,
