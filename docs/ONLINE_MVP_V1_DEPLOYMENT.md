@@ -78,34 +78,10 @@ Online startup refuses unowned/legacy rows. Re-import approved originals and
 create profiles through authenticated endpoints; any bulk import/ownership
 assignment needs an audited migration and separate data-loss review.
 
-Supabase's public-schema Data API is a separate ingress. The PostgreSQL migration
-enables RLS on all application tables, revokes PUBLIC and existing anon /
-authenticated grants, and creates no public policies. With provider SQL tooling,
-create a backend-only login with a generated secret (do not grant it to anon /
-authenticated), then run the following **as the migration owner**, adapting schema
-names. Creating roles/grants is an external action and has not been executed.
-
-```sql
--- Role maritime_backend must first exist with LOGIN and an operator-set password.
-GRANT USAGE ON SCHEMA public TO maritime_backend;
-DO $$
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['vessels','documents','document_chunks','auth_sessions',
-                           'rate_windows','ai_daily_usage','alembic_version'] LOOP
-    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.%I TO maritime_backend', t);
-    EXECUTE format('CREATE POLICY backend_only ON public.%I TO maritime_backend USING (true) WITH CHECK (true)', t);
-  END LOOP;
-END $$;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO maritime_backend;
-```
-
-Do not expose backend-role tokens through Supabase Auth or the browser. FastAPI
-checks owner IDs; these policies intentionally permit the trusted backend to
-operate its private tables, while browser roles have no access. Runtime needs no
-schema CREATE, migration ownership, superuser or BYPASSRLS privileges. Store a
-separate migration credential outside the runtime service. Verify actual provider
-role/pooler username syntax in the dashboard.
+For the reviewed staging role bootstrap, explicit table grants, RLS policies and
+migration-owner procedure, follow [Supabase staging setup](SUPABASE_STAGING_SETUP.md)
+and its [security checklist](SUPABASE_STAGING_SECURITY_CHECKLIST.md). Do not grant
+runtime DML on `alembic_version` or blanket access to all/future sequences.
 
 Use Supabase's session pooler where direct IPv6 is unavailable. The app pool
 opens at most two runtime connections; allow a separate migration/admin

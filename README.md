@@ -296,3 +296,5 @@ For local PostgreSQL integration with Docker and OpenSSL, run
 `python scripts/test_postgres.py -q` from the repository root. That helper creates
 a temporary PostgreSQL 17 container and test CA, runs the full backend suite over
 verified TLS, and removes the container. It never uses a cloud database.
+
+Staging database preparation: [Supabase setup](docs/SUPABASE_STAGING_SETUP.md) and [security checklist](docs/SUPABASE_STAGING_SECURITY_CHECKLIST.md). These are operator procedures; no remote migration or deployment is automatic.

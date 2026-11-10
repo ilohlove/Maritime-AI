@@ -1,0 +1,18 @@
+{
+  "name": "maritime-ai-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../../frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "MARITIME_BACKEND_ORIGIN": "https://maritime-ai-staging-api.onrender.com",
+    "MARITIME_PUBLIC_ORIGIN": "https://maritime-ai-staging.locvipvip.workers.dev",
+    "MARITIME_ONLINE_MVP_MODE": "true"
+  }
+}
